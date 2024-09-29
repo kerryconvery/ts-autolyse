@@ -9,7 +9,9 @@ export type Route<ContractTypes extends Record<string, z.ZodType>> = {
   inputSchema: keyof ContractTypes,
   resultTypes: ReasonType[],
   outputSchema: keyof ContractTypes,
-  deprecated?: boolean
+  deprecated?: {
+    replacement: string | null
+  }
 }
 
 export class Router<Contracts extends Record<string, z.ZodType>> {

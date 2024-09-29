@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { HttpClient, HttpMethod, noContent, Result, serverError, success, validationError } from '../types';
+import { HttpClient, HttpMethod, noContent, Result, serverError, success, validationError } from './types';
 
 type RouteMethod<Output> = (client: HttpClient, apiUrl: string, payload: Record<string, unknown>) => Promise<Result<Output>>
 

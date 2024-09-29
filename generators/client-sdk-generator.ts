@@ -1,6 +1,6 @@
 import ts from 'typescript'
 import { z } from "zod";
-import { RouterConfig, Route, ReasonType, Environment } from "../types";
+import { RouterConfig, Route, ReasonType, Environment } from "./types";
 import fs from 'fs';
 import path from 'path';
 
@@ -34,7 +34,7 @@ const generateImports = <ContractTypes extends Record<string, z.ZodType>>(contra
   return `
     import { z } from 'zod'
     import { invokeRoute } from './client';
-    import { createHttpClient } from './httpClient';
+    import { createHttpClient, HeaderGetter } from './httpClient';
     import { Environment, HttpClient, ${withoutDuplicates.join(', ')} } from './types';
     import * as contracts from './${removeFileExtension(getFilename(contractsPath))}';
   `
@@ -45,8 +45,11 @@ const generateSdkClass = <ContractTypes extends Record<string, z.ZodType>>(confi
     export class Sdk {
       private client: HttpClient;
 
-      constructor(environment: Environment) {
-         this.client = createHttpClient(environment === 'Dev' ? '${config['Dev'].url}' : '${config['Prod'].url}');
+      constructor(environment: Environment, getCustomHeaders: HeaderGetter) {
+        this.client = createHttpClient(
+          environment === 'Dev' ? '${config['Dev'].url}' : '${config['Prod'].url}',
+          getCustomHeaders
+        );
       }
 
       ${generateClassFunctions(routeDefinition)}
@@ -63,7 +66,7 @@ const formatSourceCode = (sourceCode: string): string => {
 
 const saveSdk = (outPath: string, sourceCode: string, contractsSourceFile: string): void => {
   if (fs.existsSync(outPath)) {
-    fs.rmdirSync(outPath, { recursive: true });
+    fs.rmSync(outPath, { recursive: true });
   }
 
   fs.mkdirSync(outPath, { recursive: true });
@@ -71,7 +74,7 @@ const saveSdk = (outPath: string, sourceCode: string, contractsSourceFile: strin
 
   copyImportFile('client.ts', __dirname, outPath);
   copyImportFile('httpClient.ts', __dirname, outPath);
-  copyImportFile('types.ts', path.join(__dirname, '../'), outPath);
+  copyImportFile('types.ts', __dirname, outPath);
   
   fs.copyFileSync(contractsSourceFile, path.join(outPath, getFilename(contractsSourceFile)));
 }
@@ -104,7 +107,7 @@ const generateClassFunction = <ContractTypes extends Record<string, z.ZodType>>(
   return `
     /**
     * ${route.summary}
-    * ${route.deprecated ? '@deprecated this method should not be used' : ''}
+    * ${route.deprecated ? `@deprecated ${route.deprecated?.replacement ? `the method ${route.deprecated?.replacement} should be used instead` : 'this method should not be used'}` : ''}
     */
     public ${uncapitalize(name)}(input: ${getInputTypeName(name)}): Promise<${constructReturnType(name, route)}> {
       const result = invokeRoute(this.client, '${route.path}', '${route.method}', input, contracts.${route.inputSchema.toString()})

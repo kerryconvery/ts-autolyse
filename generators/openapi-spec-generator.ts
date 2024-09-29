@@ -3,7 +3,7 @@ import {
   OpenApiGeneratorV3,
   extendZodWithOpenApi
 } from '@asteasolutions/zod-to-openapi';
-import { Route, RouterConfig } from '../types';
+import { Route, RouterConfig } from './types';
 import { z } from 'zod';
 import fs from 'fs'
 import path from 'path'
@@ -49,7 +49,7 @@ export const generateOpenApiSpec = <ContractTypes extends Record<string, z.ZodTy
 
 const saveSpec = (spec: string, outPath: string): void => {
   if (fs.existsSync(outPath)) {
-    fs.rmdirSync(outPath, { recursive: true })
+    fs.rmSync(outPath, { recursive: true })
   }
 
   fs.mkdirSync(outPath, { recursive: true });

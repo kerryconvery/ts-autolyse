@@ -1,4 +1,4 @@
-import { HttpClient } from "../types";
+import { HttpClient } from "./types";
 
 export type HeaderGetter = () => Promise<Record<string, string>>
 

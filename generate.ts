@@ -1,5 +1,5 @@
-import { Config, generateClientSdk } from "./generators/client-sdk/sdk-generator";
-import { generateOpenApiSpec } from "./generators/openapi-spec/spec-generator";
+import { Config, generateClientSdk } from "./generators/client-sdk-generator";
+import { generateOpenApiSpec } from "./generators/openapi-spec-generator";
 import * as contracts from './src/contracts'
 import { router } from './src/server'
 
