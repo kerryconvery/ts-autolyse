@@ -14,7 +14,7 @@ export const invokeRoute = async <Output>(client: HttpClient, routePath: string,
     return routeHandler(client, apiUrl, requestData)
   }
 
-  return validationError()
+  return validationError(parsedInput.error.message)
 }
 
 const getRouteHandler = <Output>(httpMethod: HttpMethod): RouteMethod<Output> => {

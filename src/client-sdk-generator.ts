@@ -1,8 +1,9 @@
 import ts from 'typescript'
 import { z } from "zod";
-import { RouterConfig, Route, ReasonType, Environment } from "./types";
+import { ReasonType, Environment } from './client-sdk-lib/types'
 import fs from 'fs';
 import path from 'path';
+import { RouterConfig, RouterConfigs } from './router';
 
 export type Config = {
   [key in Environment]: {
@@ -10,7 +11,7 @@ export type Config = {
   }
 }
 
-export const generateClientSdk = <ContractTypes extends Record<string, z.ZodType>>(routeDefinition: RouterConfig<ContractTypes>, contractsSourceFile: string, config: Config, outPath: string): void => {
+export const generateClientSdk = <ContractTypes extends Record<string, z.ZodType>>(routeDefinition: RouterConfigs<ContractTypes>, contractsSourceFile: string, config: Config, outPath: string): void => {
   const sourceCode = `
     // Generated code, do not modify
 
@@ -24,23 +25,23 @@ export const generateClientSdk = <ContractTypes extends Record<string, z.ZodType
   saveSdk(outPath, formatSourceCode(sourceCode), contractsSourceFile)
 }
 
-const generateImports = <ContractTypes extends Record<string, z.ZodType>>(contractsPath: string, routeDefinition: RouterConfig<ContractTypes>): string => {
+const generateImports = <ContractTypes extends Record<string, z.ZodType>>(contractsPath: string, routeDefinition: RouterConfigs<ContractTypes>): string => {
   const allReturnTypes = Object
     .values(routeDefinition)
-    .flatMap((route: Route<ContractTypes>): ReasonType[] => route.resultTypes)
+    .flatMap((route: RouterConfig<ContractTypes>): ReasonType[] => route.resultTypes)
 
   const withoutDuplicates = [...new Set(allReturnTypes)]
 
   return `
     import { z } from 'zod'
     import { invokeRoute } from './client';
-    import { createHttpClient, HeaderGetter } from './httpClient';
+    import { createHttpClient, HeaderGetter } from './http-client';
     import { Environment, HttpClient, ${withoutDuplicates.join(', ')} } from './types';
     import * as contracts from './${removeFileExtension(getFilename(contractsPath))}';
   `
 }
 
-const generateSdkClass = <ContractTypes extends Record<string, z.ZodType>>(config: Config, routeDefinition: RouterConfig<ContractTypes>): string => {
+const generateSdkClass = <ContractTypes extends Record<string, z.ZodType>>(config: Config, routeDefinition: RouterConfigs<ContractTypes>): string => {
   return `
     export class Sdk {
       private client: HttpClient;
@@ -72,19 +73,19 @@ const saveSdk = (outPath: string, sourceCode: string, contractsSourceFile: strin
   fs.mkdirSync(outPath, { recursive: true });
   fs.writeFileSync(path.join(outPath, 'index.ts'), sourceCode);
 
-  copyImportFile('client.ts', __dirname, outPath);
-  copyImportFile('httpClient.ts', __dirname, outPath);
-  copyImportFile('types.ts', __dirname, outPath);
+  copyImportFile('client.ts', outPath);
+  copyImportFile('http-client.ts', outPath);
+  copyImportFile('types.ts', outPath);
   
   fs.copyFileSync(contractsSourceFile, path.join(outPath, getFilename(contractsSourceFile)));
 }
 
-const copyImportFile = (importFile: string, importPath: string, outPath: string): void => {
-  fs.copyFileSync(path.join(importPath, importFile), path.join(outPath, importFile));
+const copyImportFile = (importFile: string, outPath: string): void => {
+  fs.copyFileSync(path.join(__dirname, 'client-sdk-lib', importFile), path.join(outPath, importFile));
 }
 
-const generateClassFunctions = <ContractTypes extends Record<string, z.ZodType>>(routeDefinition: RouterConfig<ContractTypes>): string => {
-  return Object.entries(routeDefinition).reduce((classFunctionsCode: string, [name, route]: [string, Route<ContractTypes>]): string => {
+const generateClassFunctions = <ContractTypes extends Record<string, z.ZodType>>(routeDefinition: RouterConfigs<ContractTypes>): string => {
+  return Object.entries(routeDefinition).reduce((classFunctionsCode: string, [name, route]: [string, RouterConfig<ContractTypes>]): string => {
     return `
       ${classFunctionsCode}
 
@@ -93,8 +94,8 @@ const generateClassFunctions = <ContractTypes extends Record<string, z.ZodType>>
   }, '')
 }
 
-const generateFunctionIOTypes = <ContractTypes extends Record<string, z.ZodType>>(routeDefinition: RouterConfig<ContractTypes>): string => {
-  return Object.entries(routeDefinition).reduce((code: string, [name, route]: [string, Route<ContractTypes>]): string => {
+const generateFunctionIOTypes = <ContractTypes extends Record<string, z.ZodType>>(routeDefinition: RouterConfigs<ContractTypes>): string => {
+  return Object.entries(routeDefinition).reduce((code: string, [name, route]: [string, RouterConfig<ContractTypes>]): string => {
     return `
       ${code}
       type ${getInputTypeName(name)} = z.infer<typeof contracts.${route.inputSchema.toString()}>
@@ -103,7 +104,7 @@ const generateFunctionIOTypes = <ContractTypes extends Record<string, z.ZodType>
   }, '')
 }
 
-const generateClassFunction = <ContractTypes extends Record<string, z.ZodType>>(name: string, route: Route<ContractTypes>): string => {  
+const generateClassFunction = <ContractTypes extends Record<string, z.ZodType>>(name: string, route: RouterConfig<ContractTypes>): string => {  
   return `
     /**
     * ${route.summary}
@@ -117,7 +118,7 @@ const generateClassFunction = <ContractTypes extends Record<string, z.ZodType>>(
   `;
 }
 
-const constructReturnType = <ContractTypes extends Record<string, z.ZodType>>(routeName: string, route: Route<ContractTypes>) => {
+const constructReturnType = <ContractTypes extends Record<string, z.ZodType>>(routeName: string, route: RouterConfig<ContractTypes>) => {
   return route.resultTypes.map((resultType: ReasonType): string => {
     if (resultType === 'Success') {
       return `Success<${getOutputTypeName(routeName)}>`
