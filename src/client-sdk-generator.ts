@@ -36,7 +36,7 @@ const generateImports = <ContractTypes extends Record<string, z.ZodType>>(contra
     import { invokeRoute } from './client';
     import { createHttpClient, HeaderGetter } from './http-client';
     import { Environment, HttpClient, ${withoutDuplicates.join(', ')} } from './types';
-    import * as contracts from './${removeFileExtension(getFilename(contractsPath))}';
+    import contracts from './${removeFileExtension(getFilename(contractsPath))}';
   `
 }
 

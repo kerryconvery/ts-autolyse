@@ -55,7 +55,7 @@ const getHandler = async <Output>(client: HttpClient, apiUrl: string): Promise<R
   })
 
   if (response.status === 200) {
-    return response.json().then((data) => success( data))
+    return response.json().then((data) => success(data))
   }
 
   return serverError()

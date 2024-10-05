@@ -105,6 +105,6 @@
     // "skipDefaultLibCheck": true,                      /* Skip type checking .d.ts files that are included with TypeScript. */
     "skipLibCheck": false                                 /* Skip type checking all .d.ts files. */
   },
-  "include": ["src/client-sdk-generator.ts", "src/openapi-spec-generator.ts", "src/router.ts", "src/index.ts"],
+  "include": ["src/client-sdk-generator.ts", "src/openapi-spec-generator.ts", "src/router.ts", "src/index.ts", "demo"],
   "exclude": ["node_modules"]
 }
