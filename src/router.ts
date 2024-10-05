@@ -3,9 +3,9 @@ import { z } from "zod";
 import { HttpMethod, ReasonType, Result } from './client-sdk-lib/types'
 import { Context } from "koa";
 
-type ContractType = Record<string, z.ZodType>
+type Contracts = Record<string, z.ZodType>
 
-export type RouterConfig<C extends ContractType> = {
+export type RouterConfig<C extends Contracts> = {
   summary: string,
   method: HttpMethod
   path: string,
@@ -17,19 +17,18 @@ export type RouterConfig<C extends ContractType> = {
   }
 }
 
-export type RouterConfigs<C extends ContractType> = {
+export type RouterConfigs<C extends Contracts> = {
   [key: string]: RouterConfig<C>
 }
 
-export type Route<C extends ContractType> = Omit<RouterConfig<C>, 'method'> & {
+export type Route<C extends Contracts> = Omit<RouterConfig<C>, 'method'> & {
   name: string,
 }
 
-type ResultType<C extends ContractType, R extends Route<C>> = Extract<Result<z.infer<C[R['outputSchema']]>>, { reason: R['resultTypes'][number] }>
-type RouteHandler<C extends ContractType, R extends Route<C>> = (input: z.infer<C[R['inputSchema']]>)  => Promise<ResultType<C, R>>
+type ResultType<C extends Contracts, R extends Route<C>> = Extract<Result<z.infer<C[R['outputSchema']]>>, { reason: R['resultTypes'][number] }>
+type RouteHandler<C extends Contracts, R extends Route<C>> = (input: z.infer<C[R['inputSchema']]>)  => Promise<ResultType<C, R>>
 
-
-export class Router<C extends ContractType> {
+export class Router<C extends Contracts> {
   private internalRouter;
   private routerConfig: RouterConfigs<C> = {}
 
