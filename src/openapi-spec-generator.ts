@@ -6,14 +6,14 @@ import {
 import { z } from 'zod';
 import fs from 'fs'
 import path from 'path'
-import { RouterConfig, RouterConfigs } from './router';
+import { Route, Routes } from './router';
 
 extendZodWithOpenApi(z);
 
 const registry = new OpenAPIRegistry();
 
-export const generateOpenApiSpec = <ContractTypes extends Record<string, z.ZodType>>(routeDefinition: RouterConfigs<ContractTypes>, contracts: ContractTypes, outPath: string) => {
-  Object.entries(routeDefinition).forEach(([_name, route]: [string, RouterConfig<ContractTypes>]) => {
+export const generateOpenApiSpec = <ContractTypes extends Record<string, z.ZodType>>(routes: Routes<ContractTypes>, contracts: ContractTypes, outPath: string) => {
+  routes.forEach((route: Route<ContractTypes>) => {
     registry.registerPath({
       path: route.path,
       method: route.method === 'GET' ? 'get' : 'post',

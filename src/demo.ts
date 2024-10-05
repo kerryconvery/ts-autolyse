@@ -4,7 +4,8 @@ import * as contracts from './contracts'
 import { z } from 'zod';
 import { NotFound, ServerError, Success, ValidationError, validationError } from './client-sdk-lib/types';
 import { generateClientSdk } from './client-sdk-generator'
-import { Sdk } from '../sdk-build';
+import { generateOpenApiSpec } from './openapi-spec-generator'
+import { Sdk } from '../sdk-build'
 
 type Contracts = typeof contracts;
 
@@ -21,10 +22,10 @@ router.get({
   inputSchema: 'clientInputSchema',
   outputSchema: 'clientOutputSchema',
   resultTypes: ['Success', 'NotFound', 'ServerError', 'ValidationError']
-} ,  getHandler)
+}, getHandler)
 
-
-generateClientSdk(router.configuration(), './src/contracts.ts', { Prod: { url: ''}, Dev: { url: ''}}, './sdk-build')
+generateClientSdk(router.getConfiguredRoutes(), './src/contracts.ts', { Prod: { url: ''}, Dev: { url: ''}}, './sdk-build')
+generateOpenApiSpec(router.getConfiguredRoutes(), contracts, './openapi')
 
 const sdk = new Sdk('Dev', () => Promise.resolve({}))
 

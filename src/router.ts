@@ -5,7 +5,8 @@ import { Context } from "koa";
 
 type Contracts = Record<string, z.ZodType>
 
-export type RouterConfig<C extends Contracts> = {
+export type Route<C extends Contracts> = {
+  name: string,
   summary: string,
   method: HttpMethod
   path: string,
@@ -17,38 +18,25 @@ export type RouterConfig<C extends Contracts> = {
   }
 }
 
-export type RouterConfigs<C extends Contracts> = {
-  [key: string]: RouterConfig<C>
-}
+export type Routes<C extends Contracts> = Route<C>[]
 
-export type Route<C extends Contracts> = Omit<RouterConfig<C>, 'method'> & {
-  name: string,
-}
+export type RouteWithoutMethod<C extends Contracts> = Omit<Route<C>, 'method'>;
 
-type ResultType<C extends Contracts, R extends Route<C>> = Extract<Result<z.infer<C[R['outputSchema']]>>, { reason: R['resultTypes'][number] }>
-type RouteHandler<C extends Contracts, R extends Route<C>> = (input: z.infer<C[R['inputSchema']]>)  => Promise<ResultType<C, R>>
+type ResultType<C extends Contracts, R extends RouteWithoutMethod<C>> = Extract<Result<z.infer<C[R['outputSchema']]>>, { reason: R['resultTypes'][number] }>
+type RouteHandler<C extends Contracts, R extends RouteWithoutMethod<C>> = (input: z.infer<C[R['inputSchema']]>)  => Promise<ResultType<C, R>>
 
 export class Router<C extends Contracts> {
   private internalRouter;
-  private routerConfig: RouterConfigs<C> = {}
+  private configuredRoutes: Routes<C> = []
 
-  private addRouterConfig(route: Route<C>, method: HttpMethod) {
-    this.routerConfig = {
-      ...this.routerConfig,
-      
-      [route.name]: {
-        summary:route.summary,
-        path: route.path,
-        inputSchema:route.inputSchema,
-        outputSchema: route.outputSchema,
-        resultTypes: route.resultTypes,
-        deprecated: route.deprecated,
-        method,
-      }
-    }
+  private addRoute(route: RouteWithoutMethod<C>, method: HttpMethod) {
+    this.configuredRoutes.push({
+      ...route,
+      method,
+    })
   }
 
-  private handlerProxy<R extends Route<C>>(handler: RouteHandler<C, R>) {
+  private handlerProxy<R extends RouteWithoutMethod<C>>(handler: RouteHandler<C, R>) {
      return (context: Context): Promise<void> => {
       return Promise.resolve()
      }
@@ -58,23 +46,23 @@ export class Router<C extends Contracts> {
     this.internalRouter = router
   }
 
-  get<R extends Route<C>>(route: R, handler: RouteHandler<C, R>): void {
-    this.addRouterConfig(route, 'GET');
+  get<R extends RouteWithoutMethod<C>>(route: R, handler: RouteHandler<C, R>): void {
+    this.addRoute(route, 'GET');
     this.internalRouter.get(route.path, this.handlerProxy(handler))
   }
 
-  post<R extends Route<C>>(route: R, handler: RouteHandler<C, R>): void {
-    this.addRouterConfig(route, 'POST');
+  post<R extends RouteWithoutMethod<C>>(route: R, handler: RouteHandler<C, R>): void {
+    this.addRoute(route, 'POST');
     this.internalRouter.post(route.path, this.handlerProxy(handler))
   }
 
-  put<R extends Route<C>>(route: R, handler: RouteHandler<C, R>): void {
-    this.addRouterConfig(route, 'PUT');
+  put<R extends RouteWithoutMethod<C>>(route: R, handler: RouteHandler<C, R>): void {
+    this.addRoute(route, 'PUT');
     this.internalRouter.put(route.path, this.handlerProxy(handler))
   }
 
-  delete<R extends Route<C>>(route: R, handler: RouteHandler<C, R>): void {
-    this.addRouterConfig(route, 'DELETE');
+  delete<R extends RouteWithoutMethod<C>>(route: R, handler: RouteHandler<C, R>): void {
+    this.addRoute(route, 'DELETE');
     this.internalRouter.delete(route.path, this.handlerProxy(handler))
   }
 
@@ -82,7 +70,7 @@ export class Router<C extends Contracts> {
     return this.internalRouter.routes()
   }
 
-  configuration(): RouterConfigs<C> {
-    return this.routerConfig
+  getConfiguredRoutes(): Routes<C> {
+    return this.configuredRoutes
   }
 }
