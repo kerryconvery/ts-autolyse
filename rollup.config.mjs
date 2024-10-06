@@ -10,6 +10,7 @@ const config = [
       copy({
         targets: [
           { src: 'src/client-sdk-lib/*', dest: 'lib/client-sdk-lib' },
+          { src: 'src/types.ts*', dest: 'lib/client-sdk-lib' },
           { src: ['build/*.js', 'build/index.d.ts', 'build/client-sdk-lib/types.js'], dest: 'lib' },
         ]
       })
