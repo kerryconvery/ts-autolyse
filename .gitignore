@@ -1,5 +1,6 @@
 node_modules
-dist
 build
-sdk
+lib
+sdk-build
 openapi
+*.tgz
