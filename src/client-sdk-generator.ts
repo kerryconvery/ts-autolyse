@@ -1,9 +1,9 @@
 import ts from 'typescript'
 import { z } from "zod";
-import { ReasonType, Environment } from './client-sdk-lib/types'
+import { Environment, ReasonType } from './client-sdk-lib/types'
 import fs from 'fs';
 import path from 'path';
-import { Route, Routes } from './router';
+import { RouteWithHttpMethod, RoutesWithHttpMethod } from './router';
 
 export type Config = {
   [key in Environment]: {
@@ -11,7 +11,7 @@ export type Config = {
   }
 }
 
-export const generateClientSdk = <ContractTypes extends Record<string, z.ZodType>>(routes: Routes<ContractTypes>, contractsSourceFile: string, config: Config, outPath: string): void => {
+export const generateClientSdk = <ContractTypes extends Record<string, z.ZodType>>(routes: RoutesWithHttpMethod<ContractTypes>, contractsSourceFile: string, config: Config, outPath: string): void => {
   const sourceCode = `
     // Generated code, do not modify
 
@@ -25,9 +25,9 @@ export const generateClientSdk = <ContractTypes extends Record<string, z.ZodType
   saveSdk(outPath, formatSourceCode(sourceCode), contractsSourceFile)
 }
 
-const generateImports = <ContractTypes extends Record<string, z.ZodType>>(contractsPath: string, routes: Routes<ContractTypes>): string => {
+const generateImports = <ContractTypes extends Record<string, z.ZodType>>(contractsPath: string, routes: RoutesWithHttpMethod<ContractTypes>): string => {
   const allReturnTypes = routes
-    .flatMap((route: Route<ContractTypes>): ReasonType[] => route.resultTypes)
+    .flatMap((route: RouteWithHttpMethod<ContractTypes>): ReasonType[] => route.resultTypes)
 
   const withoutDuplicates = [...new Set(allReturnTypes)]
 
@@ -40,7 +40,7 @@ const generateImports = <ContractTypes extends Record<string, z.ZodType>>(contra
   `
 }
 
-const generateSdkClass = <ContractTypes extends Record<string, z.ZodType>>(config: Config, routes: Routes<ContractTypes>): string => {
+const generateSdkClass = <ContractTypes extends Record<string, z.ZodType>>(config: Config, routes: RoutesWithHttpMethod<ContractTypes>): string => {
   return `
     export class Sdk {
       private client: HttpClient;
@@ -83,8 +83,8 @@ const copyImportFile = (importFile: string, outPath: string): void => {
   fs.copyFileSync(path.join(__dirname, 'client-sdk-lib', importFile), path.join(outPath, importFile));
 }
 
-const generateClassFunctions = <ContractTypes extends Record<string, z.ZodType>>(routes: Routes<ContractTypes>): string => {
-  return routes.reduce((classFunctionsCode: string, route: Route<ContractTypes>): string => {
+const generateClassFunctions = <ContractTypes extends Record<string, z.ZodType>>(routes: RoutesWithHttpMethod<ContractTypes>): string => {
+  return routes.reduce((classFunctionsCode: string, route: RouteWithHttpMethod<ContractTypes>): string => {
     return `
       ${classFunctionsCode}
 
@@ -93,8 +93,8 @@ const generateClassFunctions = <ContractTypes extends Record<string, z.ZodType>>
   }, '')
 }
 
-const generateFunctionIOTypes = <ContractTypes extends Record<string, z.ZodType>>(routes: Routes<ContractTypes>): string => {
-  return routes.reduce((code: string, route: Route<ContractTypes>): string => {
+const generateFunctionIOTypes = <ContractTypes extends Record<string, z.ZodType>>(routes: RoutesWithHttpMethod<ContractTypes>): string => {
+  return routes.reduce((code: string, route: RouteWithHttpMethod<ContractTypes>): string => {
     return `
       ${code}
       type ${getInputTypeName(route.name)} = z.infer<typeof contracts.${route.inputSchema.toString()}>
@@ -103,7 +103,7 @@ const generateFunctionIOTypes = <ContractTypes extends Record<string, z.ZodType>
   }, '')
 }
 
-const generateClassFunction = <ContractTypes extends Record<string, z.ZodType>>(name: string, route: Route<ContractTypes>): string => {  
+const generateClassFunction = <ContractTypes extends Record<string, z.ZodType>>(name: string, route: RouteWithHttpMethod<ContractTypes>): string => {  
   return `
     /**
     * ${route.summary}
@@ -117,7 +117,7 @@ const generateClassFunction = <ContractTypes extends Record<string, z.ZodType>>(
   `;
 }
 
-const constructReturnType = <ContractTypes extends Record<string, z.ZodType>>(routeName: string, route: Route<ContractTypes>) => {
+const constructReturnType = <ContractTypes extends Record<string, z.ZodType>>(routeName: string, route: RouteWithHttpMethod<ContractTypes>) => {
   return route.resultTypes.map((resultType: ReasonType): string => {
     if (resultType === 'Success') {
       return `Success<${getOutputTypeName(routeName)}>`

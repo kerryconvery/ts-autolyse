@@ -2,11 +2,10 @@ import KoaRouter from "koa-router"
 import { z } from "zod";
 import { Context } from "koa";
 import bodyParser from 'koa-bodyparser'
-import { HttpMethod, ReasonType, Result, validationError } from './types'
+import { HttpMethod, ReasonType, Result, validationError } from './client-sdk-lib/types'
 
-type Contracts = Record<string, z.ZodType>
-
-export type Route<C extends Contracts> = {
+export type Contracts = Record<string, z.ZodType>
+export type RouteWithHttpMethod<C extends Contracts> = {
   name: string,
   summary: string,
   method: HttpMethod
@@ -19,12 +18,12 @@ export type Route<C extends Contracts> = {
   }
 }
 
-export type Routes<C extends Contracts> = Route<C>[]
+export type RoutesWithHttpMethod<C extends Contracts> = RouteWithHttpMethod<C>[]
 
-export type RouteWithoutMethod<C extends Contracts> = Omit<Route<C>, 'method'>;
+export type Route<C extends Contracts> = Omit<RouteWithHttpMethod<C>, 'method'>;
 
-type ReturnType<C extends Contracts, R extends RouteWithoutMethod<C>> = Extract<Result<z.infer<C[R['outputSchema']]>>, { reason: R['resultTypes'][number] }>
-type RouteHandler<C extends Contracts, R extends RouteWithoutMethod<C>> = (input: z.infer<C[R['inputSchema']]>)  => Promise<ReturnType<C, R>>
+type ReturnType<C extends Contracts, R extends Route<C>> = Extract<Result<z.infer<C[R['outputSchema']]>>, { reason: R['resultTypes'][number] }>
+type RouteHandler<C extends Contracts, R extends Route<C>> = (input: z.infer<C[R['inputSchema']]>)  => Promise<ReturnType<C, R>>
 
 const statusResultMap = {
   'Success': {
@@ -41,12 +40,13 @@ const statusResultMap = {
 export class Router<C extends Contracts> {
   private internalRouter;
   private contracts: C;
-  private configuredRoutes: Routes<C> = []
+  private configuredRoutes: RoutesWithHttpMethod<C> = []
 
-  private addRoute(route: RouteWithoutMethod<C>, method: HttpMethod) {
+  private addRoute(route: Route<C>, method: HttpMethod) {
     this.configuredRoutes.push({
       ...route,
       method,
+      resultTypes: [...route.resultTypes, 'ValidationError']
     })
   }
 
@@ -109,7 +109,7 @@ export class Router<C extends Contracts> {
   //   }
   // }
 
-  private handlerProxy<R extends RouteWithoutMethod<C>>(routeConfig: RouteWithoutMethod<C>, method: HttpMethod, handler: RouteHandler<C, R>) {
+  private handlerProxy<R extends Route<C>>(routeConfig: Route<C>, method: HttpMethod, handler: RouteHandler<C, R>) {
     return async (context: Context): Promise<void> => {
       const inputSchema = this.contracts[routeConfig.inputSchema];
       const inputParseResult = inputSchema.safeParse({
@@ -168,22 +168,22 @@ export class Router<C extends Contracts> {
     this.setRouterMiddleware(router);
   }
 
-  get<R extends RouteWithoutMethod<C>>(route: R, handler: RouteHandler<C, R>): void {
+  get<R extends Route<C>>(route: R, handler: RouteHandler<C, R>): void {
     this.addRoute(route, 'GET');
     this.internalRouter.get(route.path, this.handlerProxy(route, 'GET', handler))
   }
 
-  post<R extends RouteWithoutMethod<C>>(route: R, handler: RouteHandler<C, R>): void {
+  post<R extends Route<C>>(route: R, handler: RouteHandler<C, R>): void {
     this.addRoute(route, 'POST');
     this.internalRouter.post(route.path, this.handlerProxy(route, 'POST', handler))
   }
 
-  put<R extends RouteWithoutMethod<C>>(route: R, handler: RouteHandler<C, R>): void {
+  put<R extends Route<C>>(route: R, handler: RouteHandler<C, R>): void {
     this.addRoute(route, 'PUT');
     this.internalRouter.put(route.path, this.handlerProxy(route, 'PUT', handler))
   }
 
-  delete<R extends RouteWithoutMethod<C>>(route: R, handler: RouteHandler<C, R>): void {
+  delete<R extends Route<C>>(route: R, handler: RouteHandler<C, R>): void {
     this.addRoute(route, 'DELETE');
     this.internalRouter.delete(route.path, this.handlerProxy(route, 'DELETE', handler))
   }
@@ -192,7 +192,7 @@ export class Router<C extends Contracts> {
     return this.internalRouter.routes()
   }
 
-  getConfiguredRoutes(): Routes<C> {
+  getConfiguredRoutes(): RoutesWithHttpMethod<C> {
     return this.configuredRoutes
   }
 }

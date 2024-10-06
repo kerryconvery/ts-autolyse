@@ -1,15 +1,15 @@
 import { z } from 'zod';
 import { HttpClient, HttpMethod, noContent, Result, serverError, success, validationError } from './types';
 
-type RouteMethod<Output> = (client: HttpClient, apiUrl: string, payload: Record<string, unknown>) => Promise<Result<Output>>
+type RouteMethod = (client: HttpClient, apiUrl: string, payload: Record<string, unknown>) => Promise<Result<unknown>>
 
-export const invokeRoute = async <Output>(client: HttpClient, routePath: string, httpMethod: HttpMethod, input: Record<string, unknown>, inputSchema: z.AnyZodObject): Promise<Result<Output>> => {
+export const invokeRoute = async (client: HttpClient, routePath: string, httpMethod: HttpMethod, input: Record<string, unknown>, inputSchema: z.AnyZodObject): Promise<Result<unknown>> => {
   const parsedInput = inputSchema.safeParse(input);
 
   if (parsedInput.success) {
     const [apiUrl, usedFields] = buildUrl(routePath, parsedInput.data);
     const requestData = omit(parsedInput.data, usedFields);
-    const routeHandler = getRouteHandler<Output>(httpMethod)
+    const routeHandler = getRouteHandler(httpMethod)
 
     return routeHandler(client, apiUrl, requestData)
   }
@@ -17,7 +17,7 @@ export const invokeRoute = async <Output>(client: HttpClient, routePath: string,
   return validationError(parsedInput.error.message)
 }
 
-const getRouteHandler = <Output>(httpMethod: HttpMethod): RouteMethod<Output> => {
+const getRouteHandler = (httpMethod: HttpMethod): RouteMethod => {
   switch(httpMethod) {
     case 'POST': {
       return postHandler
@@ -34,7 +34,7 @@ const getRouteHandler = <Output>(httpMethod: HttpMethod): RouteMethod<Output> =>
   }
 }
 
-const postHandler = async <Output>(client: HttpClient, apiUrl: string, payload: Record<string, unknown>): Promise<Result<Output>> => {
+const postHandler = async (client: HttpClient, apiUrl: string, payload: Record<string, unknown>): Promise<Result<unknown>> => {
   const response = await client(apiUrl, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -48,7 +48,7 @@ const postHandler = async <Output>(client: HttpClient, apiUrl: string, payload: 
   return serverError()
 }
 
-const getHandler = async <Output>(client: HttpClient, apiUrl: string): Promise<Result<Output>> => {
+const getHandler = async (client: HttpClient, apiUrl: string): Promise<Result<unknown>> => {
   const response = await client(apiUrl, {
     method: 'GET',
     headers: { 'Accept-Type': 'application/json' },
@@ -61,24 +61,26 @@ const getHandler = async <Output>(client: HttpClient, apiUrl: string): Promise<R
   return serverError()
 }
 
-const putHandler = async <Output>(client: HttpClient, apiUrl: string, payload: Record<string, unknown>): Promise<Result<Output>> => {
+const putHandler = async (client: HttpClient, apiUrl: string, payload: Record<string, unknown>): Promise<Result<unknown>> => {
   const response = await client(apiUrl, {
     method: 'PUT',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(payload),
   })
 
-  if (response.status === 200) {
-    return success(noContent)
+  if (isSuccessResponse(response.status)) {
+    const body = await response.json();
+
+    return success(body)
   }
 
   return serverError()
 }
 
-const deleteHandler = async <Output>(client: HttpClient, apiUrl: string): Promise<Result<Output>> => {
+const deleteHandler = async (client: HttpClient, apiUrl: string): Promise<Result<unknown>> => {
   const response = await client(apiUrl, { method: 'DELETE' })
 
-  if (response.status === 204) {
+  if (isSuccessResponse(response.status)) {
     return success(noContent)
   }
 
@@ -108,4 +110,8 @@ const omit = (value: Record<string, unknown>, fieldsToOmit: string[]) => {
       [key]: value
     }
   }, {})
+}
+
+const isSuccessResponse = (statusCode: number): boolean => {
+  return statusCode >= 200 || statusCode < 300
 }

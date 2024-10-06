@@ -5,7 +5,7 @@ export const noContent = null;
 export type Success<T> = {
   success: true,
   reason: 'Success'
-  data: T | typeof noContent
+  data: T
 }
 
 export type NotFound = {
