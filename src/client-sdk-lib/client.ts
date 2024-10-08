@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { HttpClient, HttpMethod, noContent, Result, serverError, success, validationError } from './types';
+import { HttpClient, HttpMethod, noContent, notFound, Result, serverError, success, validationError } from './types';
 
 type RouteMethod = (client: HttpClient, apiUrl: string, payload: Record<string, unknown>) => Promise<Result<unknown>>
 
@@ -41,11 +41,7 @@ const postHandler = async (client: HttpClient, apiUrl: string, payload: Record<s
     body: JSON.stringify(payload),
   })
 
-  if (response.status === 201) {
-    return response.json().then((data) => success(data))
-  }
-
-  return serverError()
+  return httpResponseToResult(response);
 }
 
 const getHandler = async (client: HttpClient, apiUrl: string): Promise<Result<unknown>> => {
@@ -54,11 +50,7 @@ const getHandler = async (client: HttpClient, apiUrl: string): Promise<Result<un
     headers: { 'Accept-Type': 'application/json' },
   })
 
-  if (response.status === 200) {
-    return response.json().then((data) => success(data))
-  }
-
-  return serverError()
+  return httpResponseToResult(response);
 }
 
 const putHandler = async (client: HttpClient, apiUrl: string, payload: Record<string, unknown>): Promise<Result<unknown>> => {
@@ -68,23 +60,13 @@ const putHandler = async (client: HttpClient, apiUrl: string, payload: Record<st
     body: JSON.stringify(payload),
   })
 
-  if (isSuccessResponse(response.status)) {
-    const body = await response.json();
-
-    return success(body)
-  }
-
-  return serverError()
+  return httpResponseToResult(response);
 }
 
 const deleteHandler = async (client: HttpClient, apiUrl: string): Promise<Result<unknown>> => {
-  const response = await client(apiUrl, { method: 'DELETE' })
+  const response = await client(apiUrl, { method: 'DELETE' });
 
-  if (isSuccessResponse(response.status)) {
-    return success(noContent)
-  }
-
-  return serverError()
+  return httpResponseToResult(response);
 }
 
 const buildUrl = (route: string, inputData: Record<string, unknown>): [string, string[]] => {
@@ -112,6 +94,26 @@ const omit = (value: Record<string, unknown>, fieldsToOmit: string[]) => {
   }, {})
 }
 
-const isSuccessResponse = (statusCode: number): boolean => {
-  return statusCode >= 200 || statusCode < 300
+const httpResponseToResult = async (response: Response): Promise<Result<unknown>> => {  
+  if (response.status === 200) {
+    return response.json().then((data) => success(data))
+  }
+
+  if (response.status === 201) {
+    return response.json().then((data) => success(data))
+  }
+
+  if (response.status === 204) {
+    return success(noContent)
+  }
+
+  if (response.status === 404) {
+    return notFound()
+  }
+
+  if (response.status === 422) {
+    return response.json().then((message: string) => validationError(message))
+  }
+
+  return serverError();
 }

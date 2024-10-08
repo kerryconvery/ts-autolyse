@@ -2,7 +2,7 @@ import KoaRouter from "koa-router"
 import { z } from "zod";
 import { Context } from "koa";
 import bodyParser from 'koa-bodyparser'
-import { HttpMethod, ReasonType, Result, validationError } from './client-sdk-lib/types'
+import { HttpMethod, ReasonType, Result, success, Success, ValidationError, validationError } from './client-sdk-lib/types'
 
 export type Contracts = Record<string, z.ZodType>
 export type RouteWithHttpMethod<C extends Contracts> = {
@@ -10,6 +10,7 @@ export type RouteWithHttpMethod<C extends Contracts> = {
   summary: string,
   method: HttpMethod
   path: string,
+  headerSchema?: keyof C,
   inputSchema: keyof C,
   resultTypes: ReasonType[],
   outputSchema: keyof C,
@@ -22,8 +23,10 @@ export type RoutesWithHttpMethod<C extends Contracts> = RouteWithHttpMethod<C>[]
 
 export type Route<C extends Contracts> = Omit<RouteWithHttpMethod<C>, 'method'>;
 
+type InputType<C extends Contracts, R extends Route<C>> = z.infer<C[R['inputSchema']]>
+type HeaderType<C extends Contracts, R extends Route<C>> = R['headerSchema'] extends keyof C ? z.infer<C[R['headerSchema']]> : {}
 type ReturnType<C extends Contracts, R extends Route<C>> = Extract<Result<z.infer<C[R['outputSchema']]>>, { reason: R['resultTypes'][number] }>
-type RouteHandler<C extends Contracts, R extends Route<C>> = (input: z.infer<C[R['inputSchema']]>)  => Promise<ReturnType<C, R>>
+type RouteHandler<C extends Contracts, R extends Route<C>> = (input: InputType<C, R>, headers: HeaderType<C, R>) => Promise<ReturnType<C, R>>
 
 const statusResultMap = {
   'Success': {
@@ -50,82 +53,37 @@ export class Router<C extends Contracts> {
     })
   }
 
-  // private handlerProxyForGet<R extends RouteWithoutMethod<C>>(routeConfig: RouteWithoutMethod<C>, handler: RouteHandler<C, R>) {
-  //   return async (context: Context): Promise<void> => {
-  //     const inputContract = this.contracts[routeConfig.inputSchema];
-  //     const inputParseResult = inputContract.safeParse(context.params);
-
-  //     if (inputParseResult.success) {
-  //       const handlerResult = await handler(inputParseResult.data);
-
-  //       this.presentResult(context, 'GET', handlerResult)
-  //     }
-  //   }
-  // }
-  
-  // private handlerProxyForPost<R extends RouteWithoutMethod<C>>(routeConfig: RouteWithoutMethod<C>, handler: RouteHandler<C, R>) {
-  //   return async (context: Context): Promise<void> => {
-  //     const inputContract = this.contracts[routeConfig.inputSchema];
-  //     const inputParseResult = inputContract.safeParse({
-  //       ...context.params,
-  //       ...this.getBodyFromContext(context),
-  //     });
-
-  //     if (inputParseResult.success) {
-  //       const handlerResult = await handler(inputParseResult.data);
-
-  //       this.presentResult(context, 'POST', handlerResult)
-  //     }
-  //   }
-  // }
-
-  // private handlerProxyForPut<R extends RouteWithoutMethod<C>>(routeConfig: RouteWithoutMethod<C>, handler: RouteHandler<C, R>) {
-  //   return async (context: Context): Promise<void> => {
-  //     const inputContract = this.contracts[routeConfig.inputSchema];
-
-  //     const inputParseResult = inputContract.safeParse({
-  //       ...context.params,
-  //       ...this.getBodyFromContext(context),
-  //     });
-
-  //     if (inputParseResult.success) {
-  //       const handlerResult = await handler(inputParseResult.data);
-
-  //       this.presentResult(context, 'PUT', handlerResult)
-  //     }
-  //   }
-  // }
-
-  // private handlerProxyForDelete<R extends RouteWithoutMethod<C>>(routeConfig: RouteWithoutMethod<C>, handler: RouteHandler<C, R>) {
-  //   return async (context: Context): Promise<void> => {
-  //     const inputContract = this.contracts[routeConfig.inputSchema];
-  //     const inputParseResult = inputContract.safeParse(context.params);
-
-  //     if (inputParseResult.success) {
-  //       const handlerResult = await handler(inputParseResult.data);
-
-  //       this.presentResult(context, 'DELETE', handlerResult)
-  //     }
-  //   }
-  // }
-
   private handlerProxy<R extends Route<C>>(routeConfig: Route<C>, method: HttpMethod, handler: RouteHandler<C, R>) {
     return async (context: Context): Promise<void> => {
-      const inputSchema = this.contracts[routeConfig.inputSchema];
-      const inputParseResult = inputSchema.safeParse({
-        ...context.params,
-        ...this.getBodyFromContext(context),
-      });
+      const headersResult = this.getHeadersFromContext(context, routeConfig);
+      const inputResult = this.getInputFromContext(context, routeConfig);
 
-      if (!inputParseResult.success) {
-        this.presentResult(context, method, validationError(inputParseResult.error.message))
-        return;
+      if (!inputResult.success) {
+        return this.presentResult(context, method, inputResult);
       }
 
-      const handlerResult = await handler(inputParseResult.data);
+      if (!headersResult.success) {
+        return this.presentResult(context, method, headersResult);
+      }
 
-      this.presentResult(context, method, handlerResult);
+      const handlerResult = await handler(inputResult.data, headersResult.data);
+
+      return this.presentResult(context, method, handlerResult);
     }
+  }
+
+  private getInputFromContext(context: Context, routeConfig: Route<C>): Success<unknown> | ValidationError {
+    const inputSchema = this.contracts[routeConfig.inputSchema];
+    const inputParseResult = inputSchema.safeParse({
+      ...context.params,
+      ...this.getBodyFromContext(context),
+    });
+
+    if (!inputParseResult.success) {
+      return validationError(`input: ${inputParseResult.error.message}`)
+    }
+
+    return success(inputParseResult.data)
   }
 
   private getBodyFromContext(context: Context): Record<string, unknown> {
@@ -137,6 +95,21 @@ export class Router<C extends Contracts> {
     const bodyParseResult = bodySchema.safeParse(context.request.body);
 
     return bodyParseResult.success ? bodyParseResult.data : {}
+  }
+
+  private getHeadersFromContext(context: Context, routeConfig: Route<C>): Success<Record<string, unknown>> | ValidationError {
+    if (!routeConfig.headerSchema) {
+      return success({})
+    }
+
+    const headerSchema = this.contracts[routeConfig.headerSchema];
+    const headerParseResult =  headerSchema.safeParse(context.headers);
+
+    if (!headerParseResult.success) {
+      return validationError(`headers: ${headerParseResult.error.message}`)
+    }
+
+    return success(headerParseResult.data)
   }
 
   private presentResult(context: Context, method: HttpMethod, result: Result<unknown>): void {

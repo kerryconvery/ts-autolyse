@@ -8,7 +8,9 @@
     "build": "tsc --project tsconfig.json",
     "bundle": "pnpm clear & pnpm build & rollup --config",
     "bundle:local": "pnpm bundle & pnpm pack",
-    "demo": "npx ts-node ./demo/generate.ts"
+    "demo:build-sdk": "npx ts-node ./demo/generate.ts",
+    "demo:serve": "npx ts-node ./demo/server.ts",
+    "demo:run": "npx ts-node ./demo/client.ts"
   },
   "keywords": [],
   "author": "",
