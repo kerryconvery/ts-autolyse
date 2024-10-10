@@ -4,7 +4,7 @@ import { Context } from "koa";
 import bodyParser from 'koa-bodyparser'
 import { HttpMethod, ReasonType, Result, success, Success, ValidationError, validationError } from './client-sdk-lib/types'
 
-export type Contracts = Record<string, z.ZodType>
+export type Contracts = Record<string, z.AnyZodObject>
 export type RouteWithHttpMethod<C extends Contracts> = {
   name: string,
   summary: string,
@@ -28,7 +28,7 @@ type HeaderType<C extends Contracts, R extends Route<C>> = R['headerSchema'] ext
 type ReturnType<C extends Contracts, R extends Route<C>> = Extract<Result<z.infer<C[R['outputSchema']]>>, { reason: R['resultTypes'][number] }>
 type RouteHandler<C extends Contracts, R extends Route<C>> = (input: InputType<C, R>, headers: HeaderType<C, R>) => Promise<ReturnType<C, R>>
 
-const statusResultMap = {
+export const statusResultMap = {
   'Success': {
     'GET': 200,
     'POST': 201,
@@ -72,7 +72,7 @@ export class Router<C extends Contracts> {
     }
   }
 
-  private getInputFromContext(context: Context, routeConfig: Route<C>): Success<unknown> | ValidationError {
+  private getInputFromContext(context: Context, routeConfig: Route<C>): Success<Record<string, unknown>> | ValidationError {
     const inputSchema = this.contracts[routeConfig.inputSchema];
     const inputParseResult = inputSchema.safeParse({
       ...context.params,

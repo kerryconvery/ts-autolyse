@@ -9,17 +9,23 @@ type Contracts = typeof contracts;
 
 export const router = new Router<Contracts>(new KoaRouter(), contracts);
 
-const getHandler = ({ clientId }: z.infer<typeof contracts.clientInputSchema>, {'x-seek-requestid': requestId, 'x-seek-sessionid': sessionId }: z.infer<typeof contracts.headersSchema>): Promise<Success<{ lastName: string }> | NotFound | ServerError> => {
+const getHandler = (
+  { clientId }: z.infer<typeof contracts.clientInputSchema>,
+  {'x-seek-requestid': requestId, 'x-seek-sessionid': sessionId }: z.infer<typeof contracts.headersSchema>
+): Promise<Success<z.infer<typeof contracts.clientOutputSchema>> | NotFound | ServerError> => {
   console.log(clientId, requestId, sessionId)
 
   return Promise.resolve(success({
-    lastName: ''
+    clientId,
+    firstName: 'Joe',
+    lastName: 'Smith',
+    emailAddress: 'joesmith@example.com'
   }))
 }
 
 router.get({
   name: 'getClientById',
-  summary: 'gets the client with the provided client id',
+  summary: 'Gets the client with the provided client id',
   path: '/:clientid',
   headerSchema: 'headersSchema',
   inputSchema: 'clientInputSchema',
