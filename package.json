@@ -41,7 +41,7 @@
     "zod": "3.23.8"
   },
   "resolutions": {
-    "koa-router/**/path-to-regexp": "6.2.1"
+    "koa-router/**/path-to-regexp": "6.3.0"
   },
   "engines": {
     "node": ">= 12"
