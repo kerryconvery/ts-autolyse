@@ -41,7 +41,7 @@
     "zod": "3.23.8"
   },
   "resolutions": {
-    "path-to-regexp": "6.2.1"
+    "path-to-regexp": "8.2.0"
   },
   "engines": {
     "node": ">= 12"
