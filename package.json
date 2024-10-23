@@ -1,5 +1,5 @@
 {
-  "name": "ts-sdk-generator",
+  "name": "ts-autodoc",
   "version": "1.0.0",
   "description": "",
   "main": "lib/index.js",
@@ -33,7 +33,7 @@
   },
   "peerDependencies": {
     "@types/koa": "2.15.0",
-    "@types/koa-bodyparser": "4.3.12",
+    "@types/koa-bodyparser": "5.0.2",
     "@types/koa-router": "7.4.8",
     "koa": "2.15.3",
     "koa-bodyparser": "4.4.1",

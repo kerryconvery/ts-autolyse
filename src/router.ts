@@ -5,6 +5,11 @@ import bodyParser from 'koa-bodyparser'
 import { HttpMethod, ReasonType, Result, success, Success, ValidationError, validationError } from './client-sdk-lib/types'
 
 export type Contracts = Record<string, z.AnyZodObject>
+export type Replaced = {
+  replacement: string
+}
+export type Deprecated = Replaced | true
+
 export type RouteWithHttpMethod<C extends Contracts> = {
   name: string,
   summary: string,
@@ -14,9 +19,7 @@ export type RouteWithHttpMethod<C extends Contracts> = {
   inputSchema: keyof C,
   resultTypes: ReasonType[],
   outputSchema: keyof C,
-  deprecated?: {
-    replacement: string | null
-  }
+  deprecated?: Deprecated,
 }
 
 export type RoutesWithHttpMethod<C extends Contracts> = RouteWithHttpMethod<C>[]
