@@ -3,7 +3,7 @@ import { z } from "zod";
 import { Environment, ReasonType } from './client-sdk-lib/types'
 import fs from 'fs';
 import path from 'path';
-import { RouteWithHttpMethod, RoutesWithHttpMethod } from './router';
+import { Deprecated, Replaced, RouteWithHttpMethod, RoutesWithHttpMethod } from './router';
 
 export type Config = {
   [key in Environment]: {
@@ -107,7 +107,7 @@ const generateClassFunction = <ContractTypes extends Record<string, z.AnyZodObje
   return `
     /**
     * ${route.summary}
-    * ${route.deprecated ? `@deprecated ${route.deprecated?.replacement ? `the method ${route.deprecated?.replacement} should be used instead` : 'this method should not be used'}` : ''}
+    * ${route.deprecated ? `@deprecated ${hasReplacement(route.deprecated) ? `the method ${route.deprecated?.replacement} should be used instead` : 'this method should not be used'}` : ''}
     */
     public ${uncapitalize(name)}(input: ${getInputTypeName(name)}): Promise<${constructReturnType(name, route)}> {
       const result = invokeRoute(this.client, '${route.path}', '${route.method}', input, contracts.${route.inputSchema.toString()})
@@ -115,6 +115,10 @@ const generateClassFunction = <ContractTypes extends Record<string, z.AnyZodObje
       return result as Promise<${constructReturnType(name, route)}>;
     }
   `;
+}
+
+const hasReplacement = (deprecated: Deprecated): deprecated is Replaced => {
+  return (deprecated as Replaced).replacement !== undefined
 }
 
 const constructReturnType = <ContractTypes extends Record<string, z.AnyZodObject>>(routeName: string, route: RouteWithHttpMethod<ContractTypes>) => {

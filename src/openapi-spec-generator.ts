@@ -1,20 +1,30 @@
 import {
   OpenAPIRegistry,
   OpenApiGeneratorV3,
-  extendZodWithOpenApi,
   RouteConfig
 } from '@asteasolutions/zod-to-openapi';
 import { z } from 'zod';
 import fs from 'fs'
 import path from 'path'
 import { RouteWithHttpMethod, RoutesWithHttpMethod, statusResultMap } from './router';
-import { HttpMethod, ReasonType } from './client-sdk-lib/types';
+import { Environment, HttpMethod, ReasonType } from './client-sdk-lib/types';
 
-extendZodWithOpenApi(z);
+export type Config = {
+  [key in Environment]: {
+    url: string
+  }
+}
 
 const registry = new OpenAPIRegistry();
 
-export const generateOpenApiSpec = <ContractTypes extends Record<string, z.AnyZodObject>>(routes: RoutesWithHttpMethod<ContractTypes>, contracts: ContractTypes, outPath: string) => {
+export const generateOpenApiSpec = <ContractTypes extends Record<string, z.AnyZodObject>>(
+  title: string,
+  description: string,
+  routes: RoutesWithHttpMethod<ContractTypes>,
+  contracts: ContractTypes,
+  config: Config,
+  outPath: string
+) => {
   routes.forEach((route: RouteWithHttpMethod<ContractTypes>) => {
     registry.registerPath({
       path: route.path,
@@ -34,10 +44,17 @@ export const generateOpenApiSpec = <ContractTypes extends Record<string, z.AnyZo
     openapi: '3.0.0',
     info: {
       version: '1.0.0',
-      title: 'My API',
-      description: 'This is the API',
+      title,
+      description
     },
-    servers: [{ url: 'v1' }],
+    servers: [{
+      url: config.Prod.url,
+      description: 'Production'
+    },
+    {
+        url: config.Dev.url,
+        description: 'Development'
+    }],
   })
 
   saveSpec(JSON.stringify(document), outPath);
