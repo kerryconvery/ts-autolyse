@@ -3,11 +3,11 @@ import KoaRouter from 'koa-router'
 import { z } from 'zod';
 import { NotFound, ServerError, Success } from '../src/client-sdk-lib/types';
 import contracts from './contracts';
-import { success } from './sdk-build/types';
+import { success } from '../src/client-sdk-lib/types'
 
 type Contracts = typeof contracts;
 
-export const router = new Router<Contracts>(new KoaRouter(), contracts);
+export const router = new Router<Contracts>(contracts);
 
 const getHandler = (
   { clientId }: z.infer<typeof contracts.clientInputSchema>,
@@ -23,10 +23,11 @@ const getHandler = (
   }))
 }
 
-router.get({
+router.add({
   name: 'getClientById',
   summary: 'Gets the client with the provided client id',
   path: '/:clientid',
+  method: 'GET',
   headerSchema: 'headersSchema',
   inputSchema: 'clientInputSchema',
   outputSchema: 'clientOutputSchema',

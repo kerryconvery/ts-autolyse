@@ -10,7 +10,7 @@ export type Replaced = {
 }
 export type Deprecated = Replaced | true
 
-export type RouteWithHttpMethod<C extends Contracts> = {
+export type Route<C extends Contracts> = {
   name: string,
   summary: string,
   method: HttpMethod
@@ -22,9 +22,7 @@ export type RouteWithHttpMethod<C extends Contracts> = {
   deprecated?: Deprecated,
 }
 
-export type RoutesWithHttpMethod<C extends Contracts> = RouteWithHttpMethod<C>[]
-
-export type Route<C extends Contracts> = Omit<RouteWithHttpMethod<C>, 'method'>;
+export type Routes<C extends Contracts> = Route<C>[]
 
 type InputType<C extends Contracts, R extends Route<C>> = z.infer<C[R['inputSchema']]>
 type HeaderType<C extends Contracts, R extends Route<C>> = R['headerSchema'] extends keyof C ? z.infer<C[R['headerSchema']]> : {}
@@ -43,35 +41,39 @@ export const statusResultMap = {
   'ServerError': 500
 }
 
+export type RouterOptions = {
+  routePrefix?: string
+}
+
 export class Router<C extends Contracts> {
   private internalRouter;
+  private options: Required<RouterOptions>
   private contracts: C;
-  private configuredRoutes: RoutesWithHttpMethod<C> = []
+  private configuredRoutes: Route<C>[] = []
 
-  private addRoute(route: Route<C>, method: HttpMethod) {
+  private addRoute(route: Route<C>) {
     this.configuredRoutes.push({
       ...route,
-      method,
       resultTypes: [...route.resultTypes, 'ValidationError']
     })
   }
 
-  private handlerProxy<R extends Route<C>>(routeConfig: Route<C>, method: HttpMethod, handler: RouteHandler<C, R>) {
+  private handlerProxy<R extends Route<C>>(routeConfig: Route<C>, handler: RouteHandler<C, R>) {
     return async (context: Context): Promise<void> => {
       const headersResult = this.getHeadersFromContext(context, routeConfig);
       const inputResult = this.getInputFromContext(context, routeConfig);
 
       if (!inputResult.success) {
-        return this.presentResult(context, method, inputResult);
+        return this.presentResult(context, routeConfig.method, inputResult);
       }
 
       if (!headersResult.success) {
-        return this.presentResult(context, method, headersResult);
+        return this.presentResult(context, routeConfig.method, headersResult);
       }
 
       const handlerResult = await handler(inputResult.data, headersResult.data);
 
-      return this.presentResult(context, method, handlerResult);
+      return this.presentResult(context, routeConfig.method, handlerResult);
     }
   }
 
@@ -137,38 +139,40 @@ export class Router<C extends Contracts> {
     }))
   }
 
-  constructor(router: KoaRouter, contracts: C) {
-    this.internalRouter = router;
+  constructor(contracts: C, options: RouterOptions = {}) {
+    this.internalRouter = new KoaRouter();
     this.contracts = contracts;
-
-    this.setRouterMiddleware(router);
+    this.options = {
+      routePrefix: options.routePrefix ?? '/',
+    }
+    this.setRouterMiddleware(this.internalRouter);
   }
 
-  get<R extends Route<C>>(route: R, handler: RouteHandler<C, R>): void {
-    this.addRoute(route, 'GET');
-    this.internalRouter.get(route.path, this.handlerProxy(route, 'GET', handler))
-  }
+  add<R extends Route<C>>(route: R, handler: RouteHandler<C, R>): void {
+    this.addRoute(route);
 
-  post<R extends Route<C>>(route: R, handler: RouteHandler<C, R>): void {
-    this.addRoute(route, 'POST');
-    this.internalRouter.post(route.path, this.handlerProxy(route, 'POST', handler))
-  }
+    if (route.method === 'GET') {
+      this.internalRouter.get(`${this.options.routePrefix}${route.path}`, this.handlerProxy(route, handler))
+    }
 
-  put<R extends Route<C>>(route: R, handler: RouteHandler<C, R>): void {
-    this.addRoute(route, 'PUT');
-    this.internalRouter.put(route.path, this.handlerProxy(route, 'PUT', handler))
-  }
+    if(route.method === 'POST') {
+      this.internalRouter.post(`${this.options.routePrefix}${route.path}`, this.handlerProxy(route, handler))
+    }
 
-  delete<R extends Route<C>>(route: R, handler: RouteHandler<C, R>): void {
-    this.addRoute(route, 'DELETE');
-    this.internalRouter.delete(route.path, this.handlerProxy(route, 'DELETE', handler))
+    if (route.method === 'PUT') {
+      this.internalRouter.put(`${this.options.routePrefix}${route.path}`, this.handlerProxy(route, handler))
+    }
+
+    if(route.method === 'DELETE') {
+      this.internalRouter.delete(`${this.options.routePrefix}${route.path}`, this.handlerProxy(route, handler))
+    }
   }
 
   routes(): KoaRouter.IMiddleware<any, {}> {
     return this.internalRouter.routes()
   }
 
-  getConfiguredRoutes(): RoutesWithHttpMethod<C> {
+  getConfiguredRoutes(): Route<C>[] {
     return this.configuredRoutes
   }
 }

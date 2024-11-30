@@ -6,7 +6,7 @@ import {
 import { z } from 'zod';
 import fs from 'fs'
 import path from 'path'
-import { RouteWithHttpMethod, RoutesWithHttpMethod, statusResultMap } from './router';
+import { Route, Routes, statusResultMap } from './router';
 import { Environment, HttpMethod, ReasonType } from './client-sdk-lib/types';
 
 export type Config = {
@@ -20,12 +20,12 @@ const registry = new OpenAPIRegistry();
 export const generateOpenApiSpec = <ContractTypes extends Record<string, z.AnyZodObject>>(
   title: string,
   description: string,
-  routes: RoutesWithHttpMethod<ContractTypes>,
+  routes: Routes<ContractTypes>,
   contracts: ContractTypes,
   config: Config,
   outPath: string
 ) => {
-  routes.forEach((route: RouteWithHttpMethod<ContractTypes>) => {
+  routes.forEach((route: Route<ContractTypes>) => {
     registry.registerPath({
       path: route.path,
       method: getOpenApiMethod(route.method),
@@ -78,7 +78,7 @@ const getOpenApiMethod = (method: HttpMethod): RouteConfig['method'] => {
   }
 }
 
-const getOpenApiResponses = <ContractTypes extends Record<string, z.AnyZodObject>>(route: RouteWithHttpMethod<ContractTypes>, contracts: ContractTypes): RouteConfig['responses'] => {
+const getOpenApiResponses = <ContractTypes extends Record<string, z.AnyZodObject>>(route: Route<ContractTypes>, contracts: ContractTypes): RouteConfig['responses'] => {
   return route.resultTypes.reduce((responses: RouteConfig['responses'], resultType: ReasonType): RouteConfig['responses'] => {
     const statusCode = resultType === 'Success' ? statusResultMap['Success'][route.method] : statusResultMap[resultType];
 

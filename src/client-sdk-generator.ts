@@ -3,7 +3,7 @@ import { z } from "zod";
 import { Environment, ReasonType } from './client-sdk-lib/types'
 import fs from 'fs';
 import path from 'path';
-import { Deprecated, Replaced, RouteWithHttpMethod, RoutesWithHttpMethod } from './router';
+import { Deprecated, Replaced, Route, Routes } from './router';
 
 export type Config = {
   [key in Environment]: {
@@ -11,23 +11,25 @@ export type Config = {
   }
 }
 
-export const generateClientSdk = <ContractTypes extends Record<string, z.AnyZodObject>>(routes: RoutesWithHttpMethod<ContractTypes>, contractsSourceFile: string, config: Config, outPath: string): void => {
+export type SdkType = 'S2S' | 'Candidate'
+
+export const generateClientSdk = <ContractTypes extends Record<string, z.AnyZodObject>>(routes: Routes<ContractTypes>, contractsSourceFile: string, config: Config, sdkType: SdkType, outPath: string): void => {
   const sourceCode = `
     // Generated code, do not modify
 
-    ${generateImports(contractsSourceFile, routes)}
+    ${generateImports(contractsSourceFile, routes, sdkType)}
 
     ${generateFunctionIOTypes(routes)}
 
-    ${generateSdkClass(config, routes)}
+    ${sdkType === 'S2S' ? generateS2sSdkClass(config, routes) : generateSdkClass(config, routes)}
   `
 
   saveSdk(outPath, formatSourceCode(sourceCode), contractsSourceFile)
 }
 
-const generateImports = <ContractTypes extends Record<string, z.AnyZodObject>>(contractsPath: string, routes: RoutesWithHttpMethod<ContractTypes>): string => {
+const generateImports = <ContractTypes extends Record<string, z.AnyZodObject>>(contractsPath: string, routes: Routes<ContractTypes>, sdkType: SdkType): string => {
   const allReturnTypes = routes
-    .flatMap((route: RouteWithHttpMethod<ContractTypes>): ReasonType[] => route.resultTypes)
+    .flatMap((route: Route<ContractTypes>): ReasonType[] => route.resultTypes)
 
   const withoutDuplicates = [...new Set(allReturnTypes)]
 
@@ -35,12 +37,12 @@ const generateImports = <ContractTypes extends Record<string, z.AnyZodObject>>(c
     import { z } from 'zod'
     import { invokeRoute } from './client';
     import { createHttpClient, HeaderGetter } from './http-client';
-    import { Environment, HttpClient, ${withoutDuplicates.join(', ')} } from './types';
+    import { Environment, ${sdkType === 'S2S' ? 'HttpS2sClient' : 'HttpClient'}, ${withoutDuplicates.join(', ')} } from './types';
     import contracts from './${removeFileExtension(getFilename(contractsPath))}';
   `
 }
 
-const generateSdkClass = <ContractTypes extends Record<string, z.AnyZodObject>>(config: Config, routes: RoutesWithHttpMethod<ContractTypes>): string => {
+const generateSdkClass = <ContractTypes extends Record<string, z.AnyZodObject>>(config: Config, routes: Routes<ContractTypes>): string => {
   return `
     export class Sdk {
       private client: HttpClient;
@@ -49,6 +51,24 @@ const generateSdkClass = <ContractTypes extends Record<string, z.AnyZodObject>>(
         this.client = createHttpClient(
           environment === 'Dev' ? '${config['Dev'].url}' : '${config['Prod'].url}',
           getCustomHeaders
+        );
+      }
+
+      ${generateClassFunctions(routes)}
+    }
+  `
+}
+
+const generateS2sSdkClass = <ContractTypes extends Record<string, z.AnyZodObject>>(config: Config, routes: Routes<ContractTypes>): string => {
+  return `
+    export class Sdk {
+      private client: HttpS2sClient;
+
+      constructor(environment: Environment, audiance: string, s2sSecretArn: string) {
+        this.client = createHttpClient(
+          environment === 'Dev' ? '${config['Dev'].url}' : '${config['Prod'].url}',
+          audiance,
+          s2sSecretArn
         );
       }
 
@@ -83,8 +103,8 @@ const copyImportFile = (importFile: string, outPath: string): void => {
   fs.copyFileSync(path.join(__dirname, 'client-sdk-lib', importFile), path.join(outPath, importFile));
 }
 
-const generateClassFunctions = <ContractTypes extends Record<string, z.AnyZodObject>>(routes: RoutesWithHttpMethod<ContractTypes>): string => {
-  return routes.reduce((classFunctionsCode: string, route: RouteWithHttpMethod<ContractTypes>): string => {
+const generateClassFunctions = <ContractTypes extends Record<string, z.AnyZodObject>>(routes: Routes<ContractTypes>): string => {
+  return routes.reduce((classFunctionsCode: string, route: Route<ContractTypes>): string => {
     return `
       ${classFunctionsCode}
 
@@ -93,8 +113,8 @@ const generateClassFunctions = <ContractTypes extends Record<string, z.AnyZodObj
   }, '')
 }
 
-const generateFunctionIOTypes = <ContractTypes extends Record<string, z.AnyZodObject>>(routes: RoutesWithHttpMethod<ContractTypes>): string => {
-  return routes.reduce((code: string, route: RouteWithHttpMethod<ContractTypes>): string => {
+const generateFunctionIOTypes = <ContractTypes extends Record<string, z.AnyZodObject>>(routes: Routes<ContractTypes>): string => {
+  return routes.reduce((code: string, route: Route<ContractTypes>): string => {
     return `
       ${code}
       type ${getInputTypeName(route.name)} = z.infer<typeof contracts.${route.inputSchema.toString()}>
@@ -103,7 +123,7 @@ const generateFunctionIOTypes = <ContractTypes extends Record<string, z.AnyZodOb
   }, '')
 }
 
-const generateClassFunction = <ContractTypes extends Record<string, z.AnyZodObject>>(name: string, route: RouteWithHttpMethod<ContractTypes>): string => {  
+const generateClassFunction = <ContractTypes extends Record<string, z.AnyZodObject>>(name: string, route: Route<ContractTypes>): string => {  
   return `
     /**
     * ${route.summary}
@@ -121,7 +141,7 @@ const hasReplacement = (deprecated: Deprecated): deprecated is Replaced => {
   return (deprecated as Replaced).replacement !== undefined
 }
 
-const constructReturnType = <ContractTypes extends Record<string, z.AnyZodObject>>(routeName: string, route: RouteWithHttpMethod<ContractTypes>) => {
+const constructReturnType = <ContractTypes extends Record<string, z.AnyZodObject>>(routeName: string, route: Route<ContractTypes>) => {
   return route.resultTypes.map((resultType: ReasonType): string => {
     if (resultType === 'Success') {
       return `Success<${getOutputTypeName(routeName)}>`
