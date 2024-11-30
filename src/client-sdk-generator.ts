@@ -11,23 +11,21 @@ export type Config = {
   }
 }
 
-export type SdkType = 'S2S' | 'Candidate'
-
-export const generateClientSdk = <ContractTypes extends Record<string, z.AnyZodObject>>(routes: Routes<ContractTypes>, contractsSourceFile: string, config: Config, sdkType: SdkType, outPath: string): void => {
+export const generateClientSdk = <ContractTypes extends Record<string, z.AnyZodObject>>(routes: Routes<ContractTypes>, contractsSourceFile: string, config: Config, outPath: string): void => {
   const sourceCode = `
     // Generated code, do not modify
 
-    ${generateImports(contractsSourceFile, routes, sdkType)}
+    ${generateImports(contractsSourceFile, routes)}
 
     ${generateFunctionIOTypes(routes)}
 
-    ${sdkType === 'S2S' ? generateS2sSdkClass(config, routes) : generateSdkClass(config, routes)}
+    ${generateS2sSdkClass(config, routes)}
   `
 
   saveSdk(outPath, formatSourceCode(sourceCode), contractsSourceFile)
 }
 
-const generateImports = <ContractTypes extends Record<string, z.AnyZodObject>>(contractsPath: string, routes: Routes<ContractTypes>, sdkType: SdkType): string => {
+const generateImports = <ContractTypes extends Record<string, z.AnyZodObject>>(contractsPath: string, routes: Routes<ContractTypes>): string => {
   const allReturnTypes = routes
     .flatMap((route: Route<ContractTypes>): ReasonType[] => route.resultTypes)
 
@@ -37,32 +35,15 @@ const generateImports = <ContractTypes extends Record<string, z.AnyZodObject>>(c
     import { z } from 'zod'
     import { invokeRoute } from './client';
     import { createHttpClient, HeaderGetter } from './http-client';
-    import { Environment, ${sdkType === 'S2S' ? 'HttpS2sClient' : 'HttpClient'}, ${withoutDuplicates.join(', ')} } from './types';
+    import { Environment, HttpClient, ${withoutDuplicates.join(', ')} } from './types';
     import contracts from './${removeFileExtension(getFilename(contractsPath))}';
-  `
-}
-
-const generateSdkClass = <ContractTypes extends Record<string, z.AnyZodObject>>(config: Config, routes: Routes<ContractTypes>): string => {
-  return `
-    export class Sdk {
-      private client: HttpClient;
-
-      constructor(environment: Environment, getCustomHeaders: HeaderGetter) {
-        this.client = createHttpClient(
-          environment === 'Dev' ? '${config['Dev'].url}' : '${config['Prod'].url}',
-          getCustomHeaders
-        );
-      }
-
-      ${generateClassFunctions(routes)}
-    }
   `
 }
 
 const generateS2sSdkClass = <ContractTypes extends Record<string, z.AnyZodObject>>(config: Config, routes: Routes<ContractTypes>): string => {
   return `
     export class Sdk {
-      private client: HttpS2sClient;
+      private client: HttpClient;
 
       constructor(environment: Environment, audiance: string, s2sSecretArn: string) {
         this.client = createHttpClient(

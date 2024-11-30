@@ -15,7 +15,7 @@ const config = {
   Dev: { url: 'http://localhost:3001' }
 }
 
-generateClientSdk(router.getConfiguredRoutes(), getLocalPath('contracts.ts'), config, 'S2S', getLocalPath('sdk-build'))
+generateClientSdk(router.getConfiguredRoutes(), getLocalPath('contracts.ts'), config, getLocalPath('sdk-build'))
 generateOpenApiSpec('', '', router.getConfiguredRoutes(), contracts, config, getLocalPath('openapi'));
 
 const version = getClientSdkVersion(getLocalPath('sdk-build/index.ts'));
