@@ -59,7 +59,7 @@ export const serverError = (): ServerError => ({
   reason: 'ServerError'
 })
 
-export const inputBase = z.object({
+export const inputSchema = z.object({
   metadata: z.object({
     requestId: z.string(),
     sessionId: z.string().optional()

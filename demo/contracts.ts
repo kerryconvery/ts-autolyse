@@ -1,10 +1,10 @@
 import z from 'zod'
-import { inputBase } from '../src/client-sdk-lib/types'
+import { inputSchema } from '../src/client-sdk-lib/types'
 
 export default {
-  clientInputSchema: inputBase.merge(z.object({
+  clientInputSchema: inputSchema.extend({
     clientId: z.string()
-  })),
+  }),
   clientOutputSchema: z.object({
     clientId: z.string(),
     firstName: z.string(),

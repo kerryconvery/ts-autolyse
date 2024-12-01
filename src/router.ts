@@ -2,7 +2,8 @@ import KoaRouter from "koa-router"
 import { z } from "zod";
 import { Context } from "koa";
 import bodyParser from 'koa-bodyparser'
-import { HttpMethod, inputBase, ReasonType, Result, success, Success, ValidationError, validationError } from './client-sdk-lib/types'
+import { v4 as uuidV4} from 'uuid'
+import { HttpMethod,  ReasonType, Result, success, Success, ValidationError, validationError } from './client-sdk-lib/types'
 
 export type Contracts = Record<string, z.AnyZodObject>
 export type Replaced = {
@@ -28,6 +29,11 @@ type InputType<C extends Contracts, R extends Route<C>> = z.infer<C[R['inputSche
 type HeaderType<C extends Contracts, R extends Route<C>> = R['headerSchema'] extends keyof C ? z.infer<C[R['headerSchema']]> : {}
 type ReturnType<C extends Contracts, R extends Route<C>> = Extract<Result<z.infer<C[R['outputSchema']]>>, { reason: R['resultTypes'][number] }>
 type RouteHandler<C extends Contracts, R extends Route<C>> = (input: InputType<C, R>, headers: HeaderType<C, R>) => Promise<ReturnType<C, R>>
+
+const baseHeaderSchema = z.object({
+  'x-request-id': z.string().optional(),
+  'x-session-id': z.string().optional()
+})
 
 export const statusResultMap = {
   'Success': {
@@ -103,15 +109,17 @@ export class Router<C extends Contracts> {
   }
 
   private getHeadersFromContext(context: Context, routeConfig: Route<C>): Success<Record<string, unknown>> | ValidationError {
-    if (!routeConfig.headerSchema) {
-      return success({})
-    }
-
-    const headerSchema = this.contracts[routeConfig.headerSchema];
+    const headerSchema = routeConfig.headerSchema
+      ? this.contracts[routeConfig.headerSchema].merge(baseHeaderSchema)
+      : baseHeaderSchema;
     const headerParseResult =  headerSchema.safeParse(context.headers);
 
     if (!headerParseResult.success) {
       return validationError(`headers: ${headerParseResult.error.message}`)
+    }
+
+    if (!headerParseResult.data["x-request-id"]) {
+      headerParseResult.data["x-request-id"] = uuidV4()
     }
 
     return success(headerParseResult.data)
