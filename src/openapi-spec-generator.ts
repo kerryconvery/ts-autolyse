@@ -8,6 +8,9 @@ import fs from 'fs'
 import path from 'path'
 import { Route, Routes, statusResultMap } from './router';
 import { Environment, HttpMethod, ReasonType } from './client-sdk-lib/types';
+import { extendZod } from '.';
+
+extendZod(z)
 
 export type Config = {
   [key in Environment]: {
