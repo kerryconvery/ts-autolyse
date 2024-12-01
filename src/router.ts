@@ -2,7 +2,7 @@ import KoaRouter from "koa-router"
 import { z } from "zod";
 import { Context } from "koa";
 import bodyParser from 'koa-bodyparser'
-import { HttpMethod, ReasonType, Result, success, Success, ValidationError, validationError } from './client-sdk-lib/types'
+import { HttpMethod, inputBase, ReasonType, Result, success, Success, ValidationError, validationError } from './client-sdk-lib/types'
 
 export type Contracts = Record<string, z.AnyZodObject>
 export type Replaced = {

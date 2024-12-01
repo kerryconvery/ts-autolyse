@@ -1,3 +1,5 @@
+import { z } from "zod";
+
 export type Environment = 'Dev' | 'Prod' 
 export type HttpMethod = 'GET' | 'POST' | 'PUT' | 'DELETE'
 export const noContent = null;
@@ -55,4 +57,12 @@ export const validationError = (message: string): ValidationError => ({
 export const serverError = (): ServerError => ({
   success: false,
   reason: 'ServerError'
+})
+
+export const inputBase = z.object({
+  metadata: z.object({
+    requestId: z.string(),
+    sessionId: z.string().optional()
+  }),
+  tags: z.object({}).optional()
 })
