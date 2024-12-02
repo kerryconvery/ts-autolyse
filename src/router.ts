@@ -3,7 +3,7 @@ import { z } from "zod";
 import { Context } from "koa";
 import bodyParser from 'koa-bodyparser'
 import { v4 as uuidV4} from 'uuid'
-import { HttpMethod,  ReasonType, Result, success, Success, ValidationError, validationError } from './client-sdk-lib/types'
+import { HttpMethod,  ResultType, Result, success, Success, ValidationError, validationError } from './client-sdk-lib/types'
 
 export type Contracts = Record<string, z.AnyZodObject>
 export type Replaced = {
@@ -18,8 +18,8 @@ export type Route<C extends Contracts> = {
   path: string,
   headerSchema?: keyof C,
   inputSchema: keyof C,
-  resultTypes: ReasonType[],
-  outputSchema: keyof C,
+  outputSchema?: keyof C,
+  resultTypes: ResultType[],
   deprecated?: Deprecated,
 }
 
@@ -27,7 +27,7 @@ export type Routes<C extends Contracts> = Route<C>[]
 
 type InputType<C extends Contracts, R extends Route<C>> = z.infer<C[R['inputSchema']]>
 type HeaderType<C extends Contracts, R extends Route<C>> = R['headerSchema'] extends keyof C ? z.infer<C[R['headerSchema']]> : {}
-type ReturnType<C extends Contracts, R extends Route<C>> = Extract<Result<z.infer<C[R['outputSchema']]>>, { reason: R['resultTypes'][number] }>
+type ReturnType<C extends Contracts, R extends Route<C>> = Extract<Result<R['outputSchema'] extends keyof C ? z.infer<C[R['outputSchema']]> : void>, { resultType: R['resultTypes'][number] }>
 type RouteHandler<C extends Contracts, R extends Route<C>> = (input: InputType<C, R>, headers: HeaderType<C, R>) => Promise<ReturnType<C, R>>
 
 const baseHeaderSchema = z.object({
@@ -42,9 +42,15 @@ export const statusResultMap = {
     'PUT': 200,
     'DELETE': 204
   },
+  'NoContent': {
+    'GET': 200,
+    'POST': 201,
+    'PUT': 200,
+    'DELETE': 204
+  },
   'NotFound': 404,
   'ValidationError': 422,
-  'ServerError': 500
+  'InternalError': 500
 }
 
 export type RouterOptions = {
@@ -94,7 +100,7 @@ export class Router<C extends Contracts> {
       return validationError(`input: ${inputParseResult.error.message}`)
     }
 
-    return success(inputParseResult.data)
+    return success(inputParseResult.data ?? {})
   }
 
   private getBodyFromContext(context: Context): Record<string, unknown> {
@@ -126,19 +132,24 @@ export class Router<C extends Contracts> {
   }
 
   private presentResult(context: Context, method: HttpMethod, result: Result<unknown>): void {
-    if (result.reason === 'Success') {
+    if (result.resultType === 'Success') {
       context.body = result.data ?? undefined;
       context.status = statusResultMap['Success'][method];
       return;
     }
 
-    if (result.reason === 'ValidationError') {
+    if (result.resultType === 'NoContent') {
+      context.status = statusResultMap['NoContent'][method];
+      return;
+    }
+
+    if (result.resultType === 'ValidationError') {
       context.body = result.message;
       context.status = statusResultMap['ValidationError'];
       return;
     }
 
-    context.status = statusResultMap[result.reason];
+    context.status = statusResultMap[result.resultType];
   }
 
   private setRouterMiddleware(router: KoaRouter) {

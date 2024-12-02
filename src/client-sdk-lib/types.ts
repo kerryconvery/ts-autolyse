@@ -2,28 +2,32 @@ import { z } from "zod";
 
 export type Environment = 'Dev' | 'Prod' 
 export type HttpMethod = 'GET' | 'POST' | 'PUT' | 'DELETE'
-export const noContent = null;
 
 export type Success<T> = {
   success: true,
-  reason: 'Success'
+  resultType: 'Success'
   data: T
+}
+
+export type NoContent = {
+  success: true,
+  resultType: 'NoContent'
 }
 
 export type NotFound = {
   success: false,
-  reason: 'NotFound'
+  resultType: 'NotFound'
 }
 
 export type ValidationError = {
   success: false,
-  reason: 'ValidationError',
+  resultType: 'ValidationError',
   message: string
 }
 
-export type ServerError = {
+export type InternalError = {
   success: false,
-  reason: 'ServerError'
+  resultType: 'InternalError'
 }
 
 export type Headers = {
@@ -32,31 +36,36 @@ export type Headers = {
   sessionId?: string,
 }
 
-export type Result<T> = Success<T> | NotFound | ValidationError | ServerError
-export type ReasonType = Result<any>['reason'] extends infer Reason ? Reason : never
+export type Result<T> = Success<T> | NoContent | NotFound | ValidationError | InternalError
+export type ResultType = Result<any>['resultType'] extends infer Reason ? Reason : never
 
 export type HttpClient = (input: string, init?: RequestInit) => Promise<Response>
 
 export const success = <T>(data: T): Success<T> => ({
   success: true,
-  reason: 'Success',
+  resultType: 'Success',
   data
+})
+
+export const noContent = (): NoContent => ({
+  success: true,
+  resultType: 'NoContent',
 })
 
 export const notFound = (): NotFound => ({
   success: false,
-  reason: 'NotFound'
+  resultType: 'NotFound'
 })
 
 export const validationError = (message: string): ValidationError => ({
   success: false,
-  reason: 'ValidationError',
+  resultType: 'ValidationError',
   message
 })
 
-export const serverError = (): ServerError => ({
+export const internalError = (): InternalError => ({
   success: false,
-  reason: 'ServerError'
+  resultType: 'InternalError'
 })
 
 export const inputSchema = z.object({

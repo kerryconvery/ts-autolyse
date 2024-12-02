@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { HttpClient, HttpMethod, noContent, notFound, Result, serverError, success, validationError } from './types';
+import { HttpClient, HttpMethod, noContent, notFound, Result, internalError, success, validationError } from './types';
 
 type RouteMethod = (client: HttpClient, apiUrl: string, payload: Record<string, unknown>) => Promise<Result<unknown>>
 
@@ -115,5 +115,5 @@ const httpResponseToResult = async (response: Response): Promise<Result<unknown>
     return response.json().then((message: string) => validationError(message))
   }
 
-  return serverError();
+  return internalError();
 }

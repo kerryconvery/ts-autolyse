@@ -1,6 +1,6 @@
 import ts from 'typescript'
 import { z } from "zod";
-import { Environment, ReasonType } from './client-sdk-lib/types'
+import { Environment, ResultType } from './client-sdk-lib/types'
 import fs from 'fs';
 import path from 'path';
 import { Deprecated, Replaced, Route, Routes } from './router';
@@ -27,7 +27,7 @@ export const generateClientSdk = <ContractTypes extends Record<string, z.AnyZodO
 
 const generateImports = <ContractTypes extends Record<string, z.AnyZodObject>>(contractsPath: string, routes: Routes<ContractTypes>): string => {
   const allReturnTypes = routes
-    .flatMap((route: Route<ContractTypes>): ReasonType[] => route.resultTypes)
+    .flatMap((route: Route<ContractTypes>): ResultType[] => route.resultTypes)
 
   const withoutDuplicates = [...new Set(allReturnTypes)]
 
@@ -96,11 +96,19 @@ const generateClassFunctions = <ContractTypes extends Record<string, z.AnyZodObj
 
 const generateFunctionIOTypes = <ContractTypes extends Record<string, z.AnyZodObject>>(routes: Routes<ContractTypes>): string => {
   return routes.reduce((code: string, route: Route<ContractTypes>): string => {
-    return `
+    const definedTypes: string = `
       ${code}
-      type ${getInputTypeName(route.name)} = z.infer<typeof contracts.${route.inputSchema.toString()}>
-      type ${getOutputTypeName(route.name)} = z.infer<typeof contracts.${route.outputSchema.toString()}>
+      type ${getInputTypeName(route.name)} = z.infer<typeof contracts.${route.inputSchema.toString()}>;
     `
+
+    if (route.outputSchema) {
+      return `
+        ${definedTypes}
+        type ${getOutputTypeName(route.name)} = z.infer<typeof contracts.${route.outputSchema.toString()}>;
+      `
+    }
+    
+    return definedTypes
   }, '')
 }
 
@@ -123,7 +131,7 @@ const hasReplacement = (deprecated: Deprecated): deprecated is Replaced => {
 }
 
 const constructReturnType = <ContractTypes extends Record<string, z.AnyZodObject>>(routeName: string, route: Route<ContractTypes>) => {
-  return route.resultTypes.map((resultType: ReasonType): string => {
+  return route.resultTypes.map((resultType: ResultType): string => {
     if (resultType === 'Success') {
       return `Success<${getOutputTypeName(routeName)}>`
     }

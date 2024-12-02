@@ -1,8 +1,9 @@
 import { Sdk } from './sdk-build'
 
-const sdk = new Sdk('Dev', () => Promise.resolve({
-  'x-seek-requestid': 'request-id',
-  'x-seek-sessionid': 'session-id'
-}))
+const sdk = new Sdk('Dev', '', '')
 
-sdk.getClientById({ clientId: '454545' }).then((result) => console.log(result))
+sdk.getClientById({ clientId: '12345678', metadata: { requestId: 'xxxx'}}).then((result) => {
+  if (result.success) {
+    result.data.clientId
+  }
+})

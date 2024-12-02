@@ -10,5 +10,5 @@ export default {
     firstName: z.string(),
     lastName: z.string(),
     emailAddress: z.string().email(),
-  }),
+  })
 }

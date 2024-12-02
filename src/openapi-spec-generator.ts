@@ -1,19 +1,23 @@
 import {
   OpenAPIRegistry,
   OpenApiGeneratorV3,
-  RouteConfig
+  ResponseConfig,
+  RouteConfig,
+  extendZodWithOpenApi
 } from '@asteasolutions/zod-to-openapi';
 import { z } from 'zod';
 import fs from 'fs'
 import path from 'path'
 import { Route, Routes, statusResultMap } from './router';
-import { Environment, HttpMethod, ReasonType } from './client-sdk-lib/types';
+import { Environment, HttpMethod, ResultType } from './client-sdk-lib/types';
 
 export type Config = {
   [key in Environment]: {
     url: string
   }
 }
+
+extendZodWithOpenApi(z)
 
 const registry = new OpenAPIRegistry();
 
@@ -79,19 +83,15 @@ const getOpenApiMethod = (method: HttpMethod): RouteConfig['method'] => {
 }
 
 const getOpenApiResponses = <ContractTypes extends Record<string, z.AnyZodObject>>(route: Route<ContractTypes>, contracts: ContractTypes): RouteConfig['responses'] => {
-  return route.resultTypes.reduce((responses: RouteConfig['responses'], resultType: ReasonType): RouteConfig['responses'] => {
-    const statusCode = resultType === 'Success' ? statusResultMap['Success'][route.method] : statusResultMap[resultType];
+  return route.resultTypes.reduce((responses: RouteConfig['responses'], resultType: ResultType): RouteConfig['responses'] => {
+    const statusCode = getStatusCode(resultType, route.method);
 
     if(statusCode === 200 || statusCode === 201) {
       return {
         ...responses,
         [statusCode]: {
           description: '',
-          content: {
-            'application/json': {
-              schema: contracts[route.outputSchema]
-            }
-          }
+          content: getResponeContent(route, contracts)
         }
       }
     }
@@ -103,4 +103,27 @@ const getOpenApiResponses = <ContractTypes extends Record<string, z.AnyZodObject
       }
     }
   }, {})
+}
+
+const getStatusCode = (resultType: ResultType, routeMethod: HttpMethod): number => {
+  if (resultType === 'Success') {
+    return statusResultMap['Success'][routeMethod]
+  }
+
+  if (resultType === 'NoContent') {
+    return statusResultMap['NoContent'][routeMethod]
+  }
+
+  return statusResultMap[resultType];
+}
+
+const getResponeContent = <ContractTypes extends Record<string, z.AnyZodObject>>(route: Route<ContractTypes>, contracts: ContractTypes): ResponseConfig['content'] => {
+  if (route.outputSchema) {
+    return {
+      'application/json': {
+        schema: contracts[route.outputSchema]
+      }
+    }
+  }
+  return undefined;
 }

@@ -1,6 +1,6 @@
 import { Router } from '../src/router'
 import { z } from 'zod';
-import { NotFound, ServerError, Success } from '../src/client-sdk-lib/types';
+import { NoContent, noContent, NotFound, InternalError, Success } from '../src/client-sdk-lib/types';
 import contracts from './contracts';
 import { success } from '../src/client-sdk-lib/types'
 
@@ -10,7 +10,7 @@ export const router = new Router<Contracts>(contracts);
 
 const getHandler = (
   { clientId, metadata }: z.infer<typeof contracts.clientInputSchema>,
-): Promise<Success<z.infer<typeof contracts.clientOutputSchema>> | NotFound | ServerError> => {
+): Promise<Success<z.infer<typeof contracts.clientOutputSchema>> | NotFound | InternalError> => {
   console.log(clientId, metadata.requestId, metadata.sessionId)
 
   return Promise.resolve(success({
@@ -19,6 +19,8 @@ const getHandler = (
     lastName: 'Smith',
     emailAddress: 'joesmith@example.com'
   }))
+
+  // return Promise.resolve(noContent())
 }
 
 router.add({
@@ -28,5 +30,5 @@ router.add({
   method: 'GET',
   inputSchema: 'clientInputSchema',
   outputSchema: 'clientOutputSchema',
-  resultTypes: ['Success', 'NotFound', 'ServerError']
+  resultTypes: ['Success', 'NotFound', 'InternalError']
 }, getHandler)

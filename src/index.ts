@@ -9,11 +9,11 @@ export {
   Success,
   NotFound,
   ValidationError,
-  ServerError,
+  InternalError as ServerError,
   success,
   notFound,
   validationError,
-  serverError,
+  internalError as serverError,
   noContent
 } from './client-sdk-lib/types'
 export const extendZod = (zod: typeof z) => extendZodWithOpenApi(zod)
