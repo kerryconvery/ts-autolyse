@@ -132,8 +132,8 @@ const hasReplacement = (deprecated: Deprecated): deprecated is Replaced => {
 
 const constructReturnType = <ContractTypes extends Record<string, z.AnyZodObject>>(routeName: string, route: Route<ContractTypes>) => {
   return route.resultTypes.map((resultType: ResultType): string => {
-    if (resultType === 'Success') {
-      return `Success<${getOutputTypeName(routeName)}>`
+    if (resultType === 'Content') {
+      return `Content<${getOutputTypeName(routeName)}>`
     }
     return `${resultType}`;
   }).join(' | ')

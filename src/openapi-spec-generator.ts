@@ -106,8 +106,8 @@ const getOpenApiResponses = <ContractTypes extends Record<string, z.AnyZodObject
 }
 
 const getStatusCode = (resultType: ResultType, routeMethod: HttpMethod): number => {
-  if (resultType === 'Success') {
-    return statusResultMap['Success'][routeMethod]
+  if (resultType === 'Content') {
+    return statusResultMap['Content'][routeMethod]
   }
 
   if (resultType === 'NoContent') {

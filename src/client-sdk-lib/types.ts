@@ -3,9 +3,9 @@ import { z } from "zod";
 export type Environment = 'Dev' | 'Prod' 
 export type HttpMethod = 'GET' | 'POST' | 'PUT' | 'DELETE'
 
-export type Success<T> = {
+export type Content<T> = {
   success: true,
-  resultType: 'Success'
+  resultType: 'Content'
   data: T
 }
 
@@ -36,14 +36,14 @@ export type Headers = {
   sessionId?: string,
 }
 
-export type Result<T> = Success<T> | NoContent | NotFound | ValidationError | InternalError
+export type Result<T> = Content<T> | NoContent | NotFound | ValidationError | InternalError
 export type ResultType = Result<any>['resultType'] extends infer Reason ? Reason : never
 
 export type HttpClient = (input: string, init?: RequestInit) => Promise<Response>
 
-export const success = <T>(data: T): Success<T> => ({
+export const content = <T>(data: T): Content<T> => ({
   success: true,
-  resultType: 'Success',
+  resultType: 'Content',
   data
 })
 

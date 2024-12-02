@@ -6,11 +6,11 @@ export { generateOpenApiSpec } from './openapi-spec-generator'
 export { Router, Route } from './router'
 export {
   Environment,
-  Success,
+  Content as Success,
   NotFound,
   ValidationError,
   InternalError as ServerError,
-  success,
+  content as success,
   notFound,
   validationError,
   internalError as serverError,

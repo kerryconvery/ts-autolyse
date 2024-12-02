@@ -3,7 +3,7 @@ import { z } from "zod";
 import { Context } from "koa";
 import bodyParser from 'koa-bodyparser'
 import { v4 as uuidV4} from 'uuid'
-import { HttpMethod,  ResultType, Result, success, Success, ValidationError, validationError } from './client-sdk-lib/types'
+import { HttpMethod,  ResultType, Result, content, Content, ValidationError, validationError } from './client-sdk-lib/types'
 
 export type Contracts = Record<string, z.AnyZodObject>
 export type Replaced = {
@@ -36,7 +36,7 @@ const baseHeaderSchema = z.object({
 })
 
 export const statusResultMap = {
-  'Success': {
+  'Content': {
     'GET': 200,
     'POST': 201,
     'PUT': 200,
@@ -89,7 +89,7 @@ export class Router<C extends Contracts> {
     }
   }
 
-  private getInputFromContext(context: Context, routeConfig: Route<C>): Success<Record<string, unknown>> | ValidationError {
+  private getInputFromContext(context: Context, routeConfig: Route<C>): Content<Record<string, unknown>> | ValidationError {
     const inputSchema = this.contracts[routeConfig.inputSchema];
     const inputParseResult = inputSchema.safeParse({
       ...context.params,
@@ -100,7 +100,7 @@ export class Router<C extends Contracts> {
       return validationError(`input: ${inputParseResult.error.message}`)
     }
 
-    return success(inputParseResult.data ?? {})
+    return content(inputParseResult.data ?? {})
   }
 
   private getBodyFromContext(context: Context): Record<string, unknown> {
@@ -114,7 +114,7 @@ export class Router<C extends Contracts> {
     return bodyParseResult.success ? bodyParseResult.data : {}
   }
 
-  private getHeadersFromContext(context: Context, routeConfig: Route<C>): Success<Record<string, unknown>> | ValidationError {
+  private getHeadersFromContext(context: Context, routeConfig: Route<C>): Content<Record<string, unknown>> | ValidationError {
     const headerSchema = routeConfig.headerSchema
       ? this.contracts[routeConfig.headerSchema].merge(baseHeaderSchema)
       : baseHeaderSchema;
@@ -128,13 +128,13 @@ export class Router<C extends Contracts> {
       headerParseResult.data["x-request-id"] = uuidV4()
     }
 
-    return success(headerParseResult.data)
+    return content(headerParseResult.data)
   }
 
   private presentResult(context: Context, method: HttpMethod, result: Result<unknown>): void {
-    if (result.resultType === 'Success') {
+    if (result.resultType === 'Content') {
       context.body = result.data ?? undefined;
-      context.status = statusResultMap['Success'][method];
+      context.status = statusResultMap['Content'][method];
       return;
     }
 

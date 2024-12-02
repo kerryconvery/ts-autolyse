@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { HttpClient, HttpMethod, noContent, notFound, Result, internalError, success, validationError } from './types';
+import { HttpClient, HttpMethod, noContent, notFound, Result, internalError, content, validationError } from './types';
 
 type RouteMethod = (client: HttpClient, apiUrl: string, payload: Record<string, unknown>) => Promise<Result<unknown>>
 
@@ -96,15 +96,15 @@ const omit = (value: Record<string, unknown>, fieldsToOmit: string[]) => {
 
 const httpResponseToResult = async (response: Response): Promise<Result<unknown>> => {  
   if (response.status === 200) {
-    return response.json().then((data) => success(data))
+    return response.json().then((data) => content(data))
   }
 
   if (response.status === 201) {
-    return response.json().then((data) => success(data))
+    return response.json().then((data) => content(data))
   }
 
   if (response.status === 204) {
-    return success(noContent)
+    return content(noContent)
   }
 
   if (response.status === 404) {
