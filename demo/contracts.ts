@@ -9,5 +9,9 @@ export default {
     firstName: z.string(),
     lastName: z.string(),
     emailAddress: z.string().email(),
+  }),
+  headers: z.object({
+    'x-request-id': z.string(),
+    testRecord: z.boolean()
   })
 }

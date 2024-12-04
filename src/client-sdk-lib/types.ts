@@ -69,7 +69,7 @@ export const internalError = (): InternalError => ({
 })
 
 export const defaultHeadersSchema = z.object({
-  'x-request-id': z.string(),
+  'x-request-id': z.string().optional(),
   sessionId: z.string().optional(),
   testRecord: z.boolean().optional(),
 })

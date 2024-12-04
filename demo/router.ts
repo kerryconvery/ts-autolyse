@@ -10,7 +10,9 @@ export const router = new Router<Contracts>(contracts);
 
 const getHandler = (
   { clientId }: z.infer<typeof contracts.clientInputSchema>,
+  { 'x-request-id': requestId, testRecord } : z.infer<typeof contracts.headers>
 ): Promise<Content<z.infer<typeof contracts.clientOutputSchema>> | NotFound | InternalError> => {
+
   return Promise.resolve(content({
     clientId,
     firstName: 'Joe',
@@ -24,6 +26,7 @@ router.add({
   summary: 'Gets the client with the provided client id',
   path: '/:clientid',
   method: 'GET',
+  headerSchema: 'headers',
   inputSchema: 'clientInputSchema',
   outputSchema: 'clientOutputSchema',
   resultTypes: ['Content', 'NotFound', 'InternalError']

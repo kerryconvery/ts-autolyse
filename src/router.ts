@@ -3,7 +3,7 @@ import { z } from "zod";
 import { Context } from "koa";
 import bodyParser from 'koa-bodyparser'
 import { v4 as uuidV4} from 'uuid'
-import { HttpMethod,  ResultType, Result, content, Content, ValidationError, validationError } from './client-sdk-lib/types'
+import { HttpMethod,  ResultType, Result, content, Content, ValidationError, validationError, defaultHeadersSchema } from './client-sdk-lib/types'
 
 export type Contracts = Record<string, z.AnyZodObject>
 export type Replaced = {
@@ -29,11 +29,6 @@ type InputType<C extends Contracts, R extends Route<C>> = z.infer<C[R['inputSche
 type HeaderType<C extends Contracts, R extends Route<C>> = R['headerSchema'] extends keyof C ? z.infer<C[R['headerSchema']]> : {}
 type ReturnType<C extends Contracts, R extends Route<C>> = Extract<Result<R['outputSchema'] extends keyof C ? z.infer<C[R['outputSchema']]> : void>, { resultType: R['resultTypes'][number] }>
 type RouteHandler<C extends Contracts, R extends Route<C>> = (input: InputType<C, R>, headers: HeaderType<C, R>) => Promise<ReturnType<C, R>>
-
-const internalHeaderSchema = z.object({
-  'x-request-id': z.string().optional(),
-  'x-session-id': z.string().optional()
-})
 
 export const statusResultMap = {
   'Content': {
@@ -116,8 +111,8 @@ export class Router<C extends Contracts> {
 
   private getHeadersFromContext(context: Context, routeConfig: Route<C>): Content<Record<string, unknown>> | ValidationError {
     const headerSchema = routeConfig.headerSchema
-      ? this.contracts[routeConfig.headerSchema].merge(internalHeaderSchema)
-      : internalHeaderSchema;
+      ? defaultHeadersSchema.merge(this.contracts[routeConfig.headerSchema])
+      : defaultHeadersSchema;
     const headerParseResult =  headerSchema.safeParse(context.headers);
 
     if (!headerParseResult.success) {

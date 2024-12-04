@@ -14,5 +14,5 @@ const config = {
   Dev: { url: 'http://localhost:3001' }
 }
 
-generateClientSdk(router.getConfiguredRoutes(), getLocalPath('contracts.ts'), config, getLocalPath('sdk-build'))
+generateClientSdk(router.getConfiguredRoutes(), contracts, getLocalPath('contracts.ts'), config, getLocalPath('sdk-build'))
 generateOpenApiSpec('', '', router.getConfiguredRoutes(), contracts, config, getLocalPath('openapi'));
