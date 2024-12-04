@@ -1,8 +1,7 @@
 import z from 'zod'
-import { inputSchema } from '../src/client-sdk-lib/types'
 
 export default {
-  clientInputSchema: inputSchema.extend({
+  clientInputSchema: z.object({
     clientId: z.string()
   }),
   clientOutputSchema: z.object({

@@ -30,7 +30,7 @@ type HeaderType<C extends Contracts, R extends Route<C>> = R['headerSchema'] ext
 type ReturnType<C extends Contracts, R extends Route<C>> = Extract<Result<R['outputSchema'] extends keyof C ? z.infer<C[R['outputSchema']]> : void>, { resultType: R['resultTypes'][number] }>
 type RouteHandler<C extends Contracts, R extends Route<C>> = (input: InputType<C, R>, headers: HeaderType<C, R>) => Promise<ReturnType<C, R>>
 
-const baseHeaderSchema = z.object({
+const internalHeaderSchema = z.object({
   'x-request-id': z.string().optional(),
   'x-session-id': z.string().optional()
 })
@@ -116,16 +116,12 @@ export class Router<C extends Contracts> {
 
   private getHeadersFromContext(context: Context, routeConfig: Route<C>): Content<Record<string, unknown>> | ValidationError {
     const headerSchema = routeConfig.headerSchema
-      ? this.contracts[routeConfig.headerSchema].merge(baseHeaderSchema)
-      : baseHeaderSchema;
+      ? this.contracts[routeConfig.headerSchema].merge(internalHeaderSchema)
+      : internalHeaderSchema;
     const headerParseResult =  headerSchema.safeParse(context.headers);
 
     if (!headerParseResult.success) {
       return validationError(`headers: ${headerParseResult.error.message}`)
-    }
-
-    if (!headerParseResult.data["x-request-id"]) {
-      headerParseResult.data["x-request-id"] = uuidV4()
     }
 
     return content(headerParseResult.data)

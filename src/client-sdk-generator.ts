@@ -34,8 +34,8 @@ const generateImports = <ContractTypes extends Record<string, z.AnyZodObject>>(c
   return `
     import { z } from 'zod'
     import { invokeRoute } from './client';
-    import { createHttpClient, HeaderGetter } from './http-client';
-    import { Environment, HttpClient, ${withoutDuplicates.join(', ')} } from './types';
+    import { createHttpClient } from './http-client';
+    import { defaultHeadersSchema, Environment, HttpClient, ${withoutDuplicates.join(', ')} } from './types';
     import contracts from './${removeFileExtension(getFilename(contractsPath))}';
   `
 }
@@ -96,19 +96,33 @@ const generateClassFunctions = <ContractTypes extends Record<string, z.AnyZodObj
 
 const generateFunctionIOTypes = <ContractTypes extends Record<string, z.AnyZodObject>>(routes: Routes<ContractTypes>): string => {
   return routes.reduce((code: string, route: Route<ContractTypes>): string => {
-    const definedTypes: string = `
-      ${code}
-      type ${getInputTypeName(route.name)} = z.infer<typeof contracts.${route.inputSchema.toString()}>;
-    `
+    const definedCode: string[] = [code];
+  
+    if (route.headerSchema) {
+      definedCode.push(`
+        const ${getHeaderSchemaName(route.name)} = contracts.${route.headerSchema.toString()}.extend(defaultHeadersSchema);
+      `)
+    } else {
+      definedCode.push(`
+        const ${getHeaderSchemaName(route.name)} = defaultHeadersSchema;
+      `)
+    }
 
+    definedCode.push(`
+      type ${getInputTypeName(route.name)} = z.infer<typeof contracts.${route.inputSchema.toString()}>;
+    `)
+
+    definedCode.push(`
+      type ${getHeaderTypeName(route.name)} = z.infer<typeof ${getHeaderSchemaName(route.name)})>;
+    `)
+    
     if (route.outputSchema) {
-      return `
-        ${definedTypes}
+      definedCode.push(`
         type ${getOutputTypeName(route.name)} = z.infer<typeof contracts.${route.outputSchema.toString()}>;
-      `
+      `)
     }
     
-    return definedTypes
+    return definedCode.join('\n')
   }, '')
 }
 
@@ -118,8 +132,8 @@ const generateClassFunction = <ContractTypes extends Record<string, z.AnyZodObje
     * ${route.summary}
     * ${route.deprecated ? `@deprecated ${hasReplacement(route.deprecated) ? `the method ${route.deprecated?.replacement} should be used instead` : 'this method should not be used'}` : ''}
     */
-    public ${uncapitalize(name)}(input: ${getInputTypeName(name)}): Promise<${constructReturnType(name, route)}> {
-      const result = invokeRoute(this.client, '${route.path}', '${route.method}', input, contracts.${route.inputSchema.toString()})
+    public ${uncapitalize(name)}(input: ${getInputTypeName(name)}, headers: ${getHeaderTypeName(name)}): Promise<${constructReturnType(name, route)}> {
+      const result = invokeRoute(this.client, '${route.path}', '${route.method}', input, contracts.${route.inputSchema.toString()}, headers, ${getHeaderSchemaName(route.name)})
 
       return result as Promise<${constructReturnType(name, route)}>;
     }
@@ -139,8 +153,11 @@ const constructReturnType = <ContractTypes extends Record<string, z.AnyZodObject
   }).join(' | ')
 }
 
+const getHeaderSchemaName = (name: string): string => name.concat('HeaderSchema')
+const getHeaderTypeName = (name: string): string => capitalize(name.concat('Header'))
 const getInputTypeName = (name: string): string => capitalize(name.concat('Input'))
 const getOutputTypeName = (name: string): string => capitalize(name.concat('Output'))
+
 
 const capitalize = (word: string): string => word
   .charAt(0)

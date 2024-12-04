@@ -1,9 +1,17 @@
-import { z } from 'zod';
+import { z, ZodDiscriminatedUnionOption } from 'zod';
 import { HttpClient, HttpMethod, noContent, notFound, Result, internalError, content, validationError } from './types';
 
 type RouteMethod = (client: HttpClient, apiUrl: string, payload: Record<string, unknown>) => Promise<Result<unknown>>
 
-export const invokeRoute = async (client: HttpClient, routePath: string, httpMethod: HttpMethod, input: Record<string, unknown>, inputSchema: z.AnyZodObject): Promise<Result<unknown>> => {
+export const invokeRoute = async (
+  client: HttpClient,
+  routePath: string,
+  httpMethod: HttpMethod,
+  input: Record<string, unknown>,
+  inputSchema: z.AnyZodObject | z.ZodDiscriminatedUnion<string, ZodDiscriminatedUnionOption<string>[]>,
+  headers?: Record<string, unknown>,
+  inputHeadersSchema?: z.AnyZodObject
+): Promise<Result<unknown>> => {
   const parsedInput = inputSchema.safeParse(input);
 
   if (parsedInput.success) {

@@ -68,10 +68,8 @@ export const internalError = (): InternalError => ({
   resultType: 'InternalError'
 })
 
-export const inputSchema = z.object({
-  metadata: z.object({
-    requestId: z.string(),
-    sessionId: z.string().optional()
-  }),
-  tags: z.object({}).optional()
+export const defaultHeadersSchema = z.object({
+  'x-request-id': z.string(),
+  sessionId: z.string().optional(),
+  testRecord: z.boolean().optional(),
 })
